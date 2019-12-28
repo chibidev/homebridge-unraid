@@ -1,0 +1,43 @@
+{
+    "name": "homebridge-unraid",
+    "version": "0.1.0",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/chibidev/homebridge-unraid.git"
+    },
+    "author": "chibidev",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/chibidev/homebridge-unraid/issues"
+    },
+    "devDependencies": {
+        "@types/node": "^12.12.14"
+    },
+    "dependencies": {
+        "hap-nodejs": "^0.5.4",
+        "ssh-exec": "^2.0.0"
+    },
+    "files": [
+        "dist/**/*.js",
+        "dist/**/*.d.ts"
+    ],
+    "scripts": {
+        "prepare": "tsc"
+    },
+    "types": "dist/index.d.ts",
+    "main": "dist/index.js",
+    "keywords": [
+        "homebridge-plugin",
+        "linux",
+        "server",
+        "unraid"
+    ],
+    "engines": {
+        "homebridge": ">=0.2.0"
+    },
+    "description": "This plugin helps you get a basic overview of your services running on an unRAID server. You can select providers that provides you information and control over your server.",
+    "homepage": "https://github.com/chibidev/homebridge-unraid#readme",
+    "directories": {
+        "test": "test"
+    }
+}
