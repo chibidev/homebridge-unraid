@@ -26,12 +26,4 @@ export class Container {
     RunningFor: string;
     Size: string;
     Status: string;
-
-    get Name(): string {
-        return this.Names[0];
-    }
-
-    get IsRunning(): boolean {
-        return this.Status.startsWith("Up");
-    }
 }

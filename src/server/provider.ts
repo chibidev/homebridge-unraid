@@ -47,8 +47,8 @@ export class DockerAccessoryProvider extends CommandAccessoryProvider {
             return new Array<Container>();
         });
         const accessories = map(containers, (container) => {
-            const accessoryName = container.Name;
-            const status = (container.IsRunning) ? HomeBridge.Accessories.Status.On : HomeBridge.Accessories.Status.Off;
+            const accessoryName = container.Names[0];
+            const status = (container.Status.startsWith("Up")) ? HomeBridge.Accessories.Status.On : HomeBridge.Accessories.Status.Off;
             const newAccessory = context.createSwitch(accessoryName, status, async (value: boolean, callback: any) => {
                 const command = (value) ? "docker start " + container.Names : "docker stop " + container.Names;
                 const data = this.executor.run(command);
