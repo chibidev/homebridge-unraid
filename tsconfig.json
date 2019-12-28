@@ -1,0 +1,30 @@
+{
+    "compilerOptions": {
+        "noErrorTruncation": true,
+        "pretty": true,
+        "sourceMap": true,
+        "target": "es2019",
+        "module": "commonjs",
+        // "noImplicitAny": true,
+        "noImplicitReturns": true,
+        "outDir": "dist",
+        "declaration": true,
+        "strictBindCallApply": true,
+        "strictNullChecks": true,
+        "alwaysStrict": true,
+        "noImplicitThis": true,
+        // "strictPropertyInitialization": true,
+        // "strictFunctionTypes": true,
+        // "strict": true,
+        "plugins": [
+            {
+                "name": "typescript-tslint-plugin",
+            }
+        ],
+        "skipLibCheck": true,
+        "incremental": true
+    },
+    "include": [
+        "src/**/*.ts"
+    ]
+}
