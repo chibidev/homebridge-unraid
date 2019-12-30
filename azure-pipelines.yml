@@ -1,0 +1,34 @@
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+- stage: Build
+  jobs:
+  - job: Build
+    steps:
+    - bash: echo "##vso[task.setvariable variable=pkg_version]$(cat package.json | grep version | cut -d ':' -f 2 | tr -d '[ \",]')"
+    - task: Docker@2
+      inputs:
+        command: 'build'
+        Dockerfile: 'ci/build.Dockerfile'
+        tags: 'homebridge-unraid-builder'
+        arguments: '-t homebridge-unraid-builder'
+    - task: CmdLine@2
+      inputs:
+        script: 'docker run --rm -v $(Build.Repository.LocalPath):/code homebridge-unraid-builder'
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: 'homebridge-unraid-$(pkg_version).tgz'
+        artifact: 'npm-package'
+        publishLocation: 'pipeline'
+    - task: Docker@2
+      inputs:
+        command: 'build'
+        Dockerfile: 'ci/release.Dockerfile'
+        tags: 'homebridge-unraid-publisher'
+        arguments: '--build-arg npm_auth_token=$(NpmAuthKey) -t homebridge-unraid-publisher'
+      condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+    - task: CmdLine@2
+      inputs:
+        script: 'docker run --rm -v $(Build.Repository.LocalPath):/artifacts homebridge-unraid-publisher'
+      condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
