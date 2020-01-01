@@ -1,6 +1,6 @@
 {
     "name": "homebridge-unraid",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "repository": {
         "type": "git",
         "url": "git+https://github.com/chibidev/homebridge-unraid.git"
@@ -11,7 +11,11 @@
         "url": "https://github.com/chibidev/homebridge-unraid/issues"
     },
     "devDependencies": {
-        "@types/node": "^12.12.14"
+        "@types/jest": "^24.0.25",
+        "@types/node": "^12.12.14",
+        "jest": "^24.9.0",
+        "ts-jest": "^24.2.0",
+        "typescript": "^3.7.4"
     },
     "dependencies": {
         "hap-nodejs": "^0.5.4",
@@ -22,7 +26,13 @@
         "dist/**/*.d.ts"
     ],
     "scripts": {
-        "prepare": "tsc"
+        "build:image": "docker build -f ci/build.Dockerfile -t homebridge-unraid-builder ci",
+        "build:publisher": "docker build -f ci/release.Dockerfile -t homebridge-unraid-publisher ci",
+        "build": "npx tsc",
+        "build:withimage": "docker run --rm -it -v `pwd`:/code homebridge-unraid-builder",
+        "prepare": "npx tsc",
+        "test": "npx jest --config=tests/config.json",
+        "release": "docker run --rm -v `pwd`:/artifacts homebridge-unraid-publisher"
     },
     "types": "dist/index.d.ts",
     "main": "dist/index.js",
