@@ -29,7 +29,7 @@
         "build:image": "docker build -f ci/build.Dockerfile -t homebridge-unraid-builder ci",
         "build:publisher": "docker build -f ci/release.Dockerfile -t homebridge-unraid-publisher ci",
         "build": "npx tsc",
-        "build:withimage": "docker run --rm -it -v `pwd`:/code homebridge-unraid-builder",
+        "build:withimage": "docker run --rm -v `pwd`:/code homebridge-unraid-builder",
         "prepare": "npx tsc",
         "test": "npx jest --config=tests/config.json",
         "release": "docker run --rm -v `pwd`:/artifacts homebridge-unraid-publisher"
