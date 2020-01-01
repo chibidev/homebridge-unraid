@@ -32,6 +32,7 @@ describe('flat operating on promises', () => {
     test('Same dimension elements should produce single dimension with all elements', async () => {
         let value = makePromise([[0, 1, 2], [3, 4, 5]]);
         let result = await Util.flat(value);
+
         expect(result.length).toBe(6);
         for (let i = 0; i < 6; ++i) {
             expect(result[i]).toBe(i);
@@ -41,6 +42,7 @@ describe('flat operating on promises', () => {
     test('Different length arrays are correctly concatenated', async () => {
         let value = makePromise([[0,1], [2,3,4,5], [6,7,8]]);
         let result = await Util.flat(value);
+
         expect(result.length).toBe(9);
         for (let i = 0; i < 9; ++i) {
             expect(result[i]).toBe(i);

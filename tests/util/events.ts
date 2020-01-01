@@ -14,16 +14,16 @@ class Emitter extends Util.TypedEventEmitter<Events> {
 }
 
 describe('Typed Event Emitter', () => {
-    test('Subscriber should be called', () => {
+    test('Subscriber should be called exactly once', () => {
         let emitter = new Emitter();
 
-        let called = false;
+        let called = 0;
         emitter.on("ItHappened", (value) => {
-            called = true;
+            ++called;
         });
         emitter.emitForwarder("ItHappened", "");
 
-        expect(called).toBe(true);
+        expect(called).toBe(1);
     });
 
     test('Value should be passed to subscriber', () => {
