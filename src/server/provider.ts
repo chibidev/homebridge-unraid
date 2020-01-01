@@ -1,7 +1,7 @@
 import { HomeBridge } from "../lib/homebridge";
 import { CommandExecutor } from "./commands";
-import { Container } from "./container";
-import { VM } from "./vm";
+import { Container } from "./models/container";
+import { VM } from "./models/vm";
 import { map } from "../util/promise";
 
 export enum AccessoryProviderType {
@@ -39,7 +39,7 @@ export class DockerAccessoryProvider extends CommandAccessoryProvider {
         // Docker command might look like this
         // let dockerCommand = Docker.CurrentContainers.jsonOutput().allContainers()...;
         //
-        // Of course TS does not support operator overloading, so this is gonna be very explicit.
+        // Of course TS does not support operator overloading, so this is gonna be very explicit. Need to find a good syntax.
         const result = this.executor.run("docker ps --format '{{ json . }}' --all --no-trunc | jq -s '[.[] | .Names |= split(\",\") | .Mounts |= split(\",\") | .Labels |= (split(\",\") | (map( split(\"=\") | { (.[0]) : .[1] } ) | add)) | .Ports |= (split(\",\") | ([.[] | capture(\"(?<ip>[^:]+):(?<hostportrange>[0-9-]+)->(?<containerportrange>[^/]+)/(?<protocol>[a-z]+)\")]))]'");
         const containers = result.then((output) => JSON.parse(output) as Container[]).catch((reason) => {
             // Might not be a fatal error, machine could be restarting.

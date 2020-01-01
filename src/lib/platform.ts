@@ -1,5 +1,5 @@
 import { HomeBridge } from "../lib/homebridge";
-import { Config } from "../server/config";
+import { Config } from "../server/models/config";
 import { difference } from "../util/iterable";
 import { TypedEventEmitter } from "../util/events";
 
@@ -69,10 +69,10 @@ class Platform<PluginType extends PlatformPlugin> extends HomeBridge.Platform {
         this.registeredAccessories = [];
 
         if (api) {
-            let context = new HomeBridge.Accessories.Context(api.platformAccessory/*, api.hap.Service, api.hap.Characteristic, api.hap.uuid*/);
+            let context = new HomeBridge.Accessories.Context(api.platformAccessory);
             // Listen to event "didFinishLaunching", this means homebridge already finished loading cached accessories.
             // Platform Plugin should only register new accessory that doesn't exist in homebridge after this event.
-            // Or start discover new accessories.
+            // Or start discovering new accessories.
             this.api.on('didFinishLaunching', () => {
                 this.platformPlugin = new pluginConstructor(log, config);
                 this.platformPlugin.on('accessoriesUpdated', this.updateAccessories.bind(this));
