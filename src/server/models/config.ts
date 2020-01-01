@@ -1,5 +1,5 @@
-import { HomeBridge } from '../lib/homebridge';
-import { AccessoryProviderType } from "./provider";
+import { HomeBridge } from '../../lib/homebridge';
+import { AccessoryProviderType } from "../provider";
 
 export namespace Config {
     export enum AddressType {

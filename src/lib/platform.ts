@@ -1,5 +1,5 @@
 import { HomeBridge } from "../lib/homebridge";
-import { Config } from "../server/config";
+import { Config } from "../server/models/config";
 import { difference } from "../util/iterable";
 import { TypedEventEmitter } from "../util/events";
 

@@ -1,7 +1,7 @@
 import { HomeBridge } from "../lib/homebridge";
 import { CommandExecutor } from "./commands";
-import { Container } from "./container";
-import { VM } from "./vm";
+import { Container } from "./models/container";
+import { VM } from "./models/vm";
 import { map } from "../util/promise";
 
 export enum AccessoryProviderType {

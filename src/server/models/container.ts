@@ -1,5 +1,3 @@
-type Dictionary<T> = { [key: string]: T }
-
 export enum PortProtocol {
     Tcp = "tcp",
     Udp = "udp"

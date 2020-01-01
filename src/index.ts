@@ -1,5 +1,5 @@
 import { HomeBridge } from "./lib/homebridge";
-import { Config } from "./server/config";
+import { Config } from "./server/models/config";
 import { Machine } from "./server/machine";
 import * as Platform from "./lib/platform";
 import { flat } from "./util/promise";

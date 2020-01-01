@@ -1,4 +1,4 @@
-import { Config } from "./config";
+import { Config } from "./models/config";
 import { CommandExecutor, SSHCommandExecutor } from "./commands";
 import { HomeBridge } from "../lib/homebridge";
 import * as Providers from "./provider";
