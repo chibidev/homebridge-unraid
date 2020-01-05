@@ -14,13 +14,14 @@ namespace Unraid {
             });
         }
 
-        protected async updateAccessoriesNow(accessoryContext: HomeBridge.Accessories.Context): Promise<void> {
+        protected async updateAccessoriesNow(): Promise<void> {
             const accessoriesFromAllMachines = this.machines.map((machine) => {
-                return machine.accessories(accessoryContext);
+                return machine.accessories();
             });
             const accessories = flat(Promise.all(accessoriesFromAllMachines));
 
             return accessories.then((accessories) => {
+                // TODO move this to Platform or PlatformPlugin instead of requiring the user to do this
                 this.emit('accessoriesUpdated', accessories);
             });
         }

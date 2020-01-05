@@ -1,4 +1,4 @@
-import * as ssh from "ssh-exec";
+import ssh = require("ssh-exec");
 
 export interface CommandExecutor {
     run(command: string): Promise<string>;

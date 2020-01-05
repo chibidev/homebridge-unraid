@@ -3,6 +3,7 @@ import { CommandExecutor, SSHCommandExecutor } from "./commands";
 import { HomeBridge } from "../lib/homebridge";
 import * as Providers from "./provider";
 import { flat } from "../util/promise";
+import { PlatformAccessory } from "homebridge/lib/platformAccessory";
 
 export class Machine {
     public constructor(config: Config.Machine) {
@@ -26,12 +27,10 @@ export class Machine {
         });
     }
 
-    public async accessories(context: HomeBridge.Accessories.Context): Promise<HomeBridge.Accessories.PlatformAccessory[]> {
+    public async accessories(): Promise<PlatformAccessory[]> {
         const accessories = flat(Promise.all(this.providers.map((provider) => {
-            return provider.accessories(context);
-        }))).then((value) => {
-            return value;
-        });
+            return provider.accessories();
+        })));
 
         return accessories;
     }

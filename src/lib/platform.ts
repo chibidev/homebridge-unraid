@@ -2,9 +2,10 @@ import { HomeBridge } from "../lib/homebridge";
 import { Config } from "../server/models/config";
 import { difference } from "../util/iterable";
 import { TypedEventEmitter } from "../util/events";
+import { PlatformAccessory } from "homebridge/lib/platformAccessory";
 
 interface PluginEvents {
-    accessoriesUpdated: HomeBridge.Accessories.PlatformAccessory[];
+    accessoriesUpdated: PlatformAccessory[];
 }
 
 export abstract class PlatformPlugin extends TypedEventEmitter<PluginEvents> {
@@ -13,7 +14,7 @@ export abstract class PlatformPlugin extends TypedEventEmitter<PluginEvents> {
         this.logger = log;
     }
     
-    public abstract updateAccessories(context: HomeBridge.Accessories.Context): Promise<void>;
+    public abstract updateAccessories(): Promise<void>;
     
     protected logger: HomeBridge.Logger;
 }
@@ -26,20 +27,19 @@ export abstract class PollingPlugin extends PlatformPlugin {
         this.timerID = null;
     }
 
-    public async updateAccessories(accessoryContext: HomeBridge.Accessories.Context): Promise<void> {
-        this.lastAccessoryContext = accessoryContext;
-        this.updateAccessoriesNow(accessoryContext);
+    public async updateAccessories(): Promise<void> {
+        this.updateAccessoriesNow();
         this.startPolling();
     }
 
-    protected abstract async updateAccessoriesNow(accessoryContext: HomeBridge.Accessories.Context): Promise<void>;
+    protected abstract async updateAccessoriesNow(): Promise<void>;
 
     protected startPolling() {
         if (this.timerID != null)
             return;
 
         this.timerID = setInterval(() => {
-            this.updateAccessoriesNow(this.lastAccessoryContext);
+            this.updateAccessoriesNow();
         }, this.secondsInterval * 1000);
     }
 
@@ -52,7 +52,6 @@ export abstract class PollingPlugin extends PlatformPlugin {
     }
 
     private secondsInterval: number;
-    private lastAccessoryContext: HomeBridge.Accessories.Context;
     private timerID: NodeJS.Timeout | null;
 }
 
@@ -69,19 +68,18 @@ class Platform<PluginType extends PlatformPlugin> extends HomeBridge.Platform {
         this.registeredAccessories = [];
 
         if (api) {
-            let context = new HomeBridge.Accessories.Context(api.platformAccessory);
             // Listen to event "didFinishLaunching", this means homebridge already finished loading cached accessories.
             // Platform Plugin should only register new accessory that doesn't exist in homebridge after this event.
             // Or start discovering new accessories.
             this.api.on('didFinishLaunching', () => {
                 this.platformPlugin = new pluginConstructor(log, config);
                 this.platformPlugin.on('accessoriesUpdated', this.updateAccessories.bind(this));
-                this.platformPlugin.updateAccessories(context);
+                this.platformPlugin.updateAccessories();
             });
         }
     }
 
-    private updateAccessories(accessories: HomeBridge.Accessories.PlatformAccessory[]): void {
+    private updateAccessories(accessories: PlatformAccessory[]): void {
         const accessoriesToRemove = difference(this.registeredAccessories, accessories, (lhs, rhs) => {
             return lhs.displayName == rhs.displayName;
         });
@@ -103,7 +101,7 @@ class Platform<PluginType extends PlatformPlugin> extends HomeBridge.Platform {
         }
     }
 
-    public configureAccessory(accessory: HomeBridge.Accessories.PlatformAccessory): void {
+    public configureAccessory(accessory: PlatformAccessory): void {
         accessory.reachable = false;
         this.registeredAccessories.push(accessory);
     }
@@ -112,7 +110,7 @@ class Platform<PluginType extends PlatformPlugin> extends HomeBridge.Platform {
     }
 
     private platformPlugin: PluginType;
-    private registeredAccessories: HomeBridge.Accessories.PlatformAccessory[];
+    private registeredAccessories: PlatformAccessory[];
     private pluginName: string;
     private platformName: string;
 }

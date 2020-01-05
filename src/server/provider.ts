@@ -1,8 +1,27 @@
-import { HomeBridge } from "../lib/homebridge";
 import { CommandExecutor } from "./commands";
 import { Container } from "./models/container";
 import { VM } from "./models/vm";
 import { map } from "../util/promise";
+import { PlatformAccessory } from "homebridge/lib/platformAccessory";
+import * as hap from "hap-nodejs";
+
+export namespace PlatformAccessories {
+    export class Switch extends PlatformAccessory {
+        public constructor(name: string) {
+            const uuid = hap.uuid.generate(name);
+            super(name, uuid);
+
+            this.on('identify', (_paired, callback) => {
+                callback();
+            });
+            this.addService(hap.Service.Switch, name);
+        }
+
+        protected get PrimaryService(): hap.Service {
+            return this.getService(hap.Service.Switch);
+        }
+    }
+}
 
 export enum AccessoryProviderType {
     Docker = "docker",
@@ -10,7 +29,7 @@ export enum AccessoryProviderType {
 }
 
 export interface AccessoryProvider {
-    accessories(context: HomeBridge.Accessories.Context): Promise<HomeBridge.Accessories.PlatformAccessory[]>;
+    accessories(): Promise<PlatformAccessory[]>;
 }
 
 export abstract class CommandAccessoryProvider implements AccessoryProvider {
@@ -18,9 +37,25 @@ export abstract class CommandAccessoryProvider implements AccessoryProvider {
         this.executor = executor;
     }
 
-    public abstract accessories(context: HomeBridge.Accessories.Context): Promise<HomeBridge.Accessories.PlatformAccessory[]>;
+    public abstract accessories(): Promise<PlatformAccessory[]>;
 
     protected executor: CommandExecutor;
+}
+
+class DockerAccessory extends PlatformAccessories.Switch {
+    public constructor(container: Container, executor: CommandExecutor) {
+        const accessoryName = container.Names[0];
+        super(accessoryName);
+
+        const switchService = this.PrimaryService;
+        switchService.setCharacteristic(hap.Characteristic.On, container.Status.startsWith("Up"));
+        switchService.getCharacteristic(hap.Characteristic.On)?.on(hap.CharacteristicEventTypes.SET, async (value: boolean, callback: any) => {
+            const command = (value) ? "docker start " + container.Names[0] : "docker stop " + container.Names[0];
+            const data = executor.run(command);
+
+            await data.finally(callback);
+        });
+    }
 }
 
 export class DockerAccessoryProvider extends CommandAccessoryProvider {
@@ -28,7 +63,7 @@ export class DockerAccessoryProvider extends CommandAccessoryProvider {
         super(executor);
     }
 
-    public async accessories(context: HomeBridge.Accessories.Context): Promise<HomeBridge.Accessories.PlatformAccessory[]> {
+    public async accessories(): Promise<PlatformAccessory[]> {
         // TODO - Command composition
         // Creating a command descriptor and then composing the command + the jq part would be much more readable
         // Something like this:
@@ -47,24 +82,32 @@ export class DockerAccessoryProvider extends CommandAccessoryProvider {
             return new Array<Container>();
         });
         const accessories = map(containers, (container) => {
-            const accessoryName = container.Names[0];
-            const status = (container.Status.startsWith("Up")) ? HomeBridge.Accessories.Status.On : HomeBridge.Accessories.Status.Off;
-            const newAccessory = context.createSwitch(accessoryName, status, async (value: boolean, callback: any) => {
-                const command = (value) ? "docker start " + container.Names : "docker stop " + container.Names;
-                const data = this.executor.run(command);
-
-                await data.finally(callback);
-            });
-            
-            return newAccessory;
+            return new DockerAccessory(container, this.executor);
         });
 
         return accessories;
     }
 }
 
+class VMAccessory extends PlatformAccessories.Switch {
+    public constructor(vm: VM, executor: CommandExecutor) {
+        const accessoryName = vm.Name;
+        super(accessoryName);
+
+        const switchService = this.PrimaryService;
+
+        switchService.setCharacteristic(hap.Characteristic.On, vm.State.startsWith("running"));
+        switchService.getCharacteristic(hap.Characteristic.On)?.on(hap.CharacteristicEventTypes.SET, async (value: boolean, callback: any) => {
+            const command = (value) ? "virsh start " + vm.Name : "virsh dompmsuspend " + vm.Name + " disk";
+            const data = executor.run(command);
+
+            await data.finally(callback);
+        });
+    }
+}
+
 export class LibvirtAccessoryProvider extends CommandAccessoryProvider {
-    async accessories(context: HomeBridge.Accessories.Context): Promise<HomeBridge.Accessories.PlatformAccessory[]> {
+    async accessories(): Promise<PlatformAccessory[]> {
         // TODO - remove that ugly json transformation
         const result = this.executor.run("virsh list --all --name | while read d; do [[ \"$d\" != \"\" ]] && virsh dominfo \"$d\" | tr -d ' ' | sed -e 's/^/\"/g' -e 's/:/\":\"/g' -e 's/$/\",/g'; done | sed -e 's/\"\"/}/g' -e 's/\"Id/{\"Id/g' -e 's/\"SecurityDOI\":\"\\(.*\\)\",/\"SecurityDOI\":\"\\1\"/g' -e 's/},/}/g' | jq -s");
         const vms = result.then((result) => JSON.parse(result) as VM[]).catch((reason) => {
@@ -72,16 +115,7 @@ export class LibvirtAccessoryProvider extends CommandAccessoryProvider {
             return new Array<VM>();
         });
         const accessories = map(vms, (vm) => {
-            const accessoryName = vm.Name;
-            const status = (vm.State.startsWith("running")) ? HomeBridge.Accessories.Status.On : HomeBridge.Accessories.Status.Off;
-            const newAccessory = context.createSwitch(accessoryName, status, async (value: boolean, callback: any) => {
-                const command = (value) ? "virsh start " + vm.Name : "virsh dompmsuspend " + vm.Name + " disk";
-                const data = this.executor.run(command);
-
-                await data.finally(callback);
-            });
-
-            return newAccessory;
+            return new VMAccessory(vm, this.executor);
         });
 
         return accessories;
