@@ -14,6 +14,10 @@ export abstract class PlatformPlugin extends TypedEventEmitter<PluginEvents> {
         this.logger = log;
     }
     
+    public configureAccessory(accessory: PlatformAccessory): boolean {
+        return false;
+    }
+    
     public abstract updateAccessories(): Promise<void>;
     
     protected logger: HomeBridge.Logger;
@@ -55,12 +59,12 @@ export abstract class PollingPlugin extends PlatformPlugin {
     private timerID: NodeJS.Timeout | null;
 }
 
-export type PluginConstructor<T> = {
-    new (log: HomeBridge.Logger, config: Config.Config): T;
+export type PluginConstructor<PluginType extends PlatformPlugin, ConfigType extends HomeBridge.Config> = {
+    new (log: HomeBridge.Logger, config: ConfigType): PluginType;
 }
 
-class Platform<PluginType extends PlatformPlugin> extends HomeBridge.Platform {
-    public constructor(pluginName: string, platformName: string, pluginConstructor: PluginConstructor<PluginType>, log: HomeBridge.Logger, config: Config.Config, api: HomeBridge.API) {
+class Platform<PluginType extends PlatformPlugin, ConfigType extends HomeBridge.Config> extends HomeBridge.Platform {
+    public constructor(pluginName: string, platformName: string, pluginConstructor: PluginConstructor<PluginType, ConfigType>, log: HomeBridge.Logger, config: ConfigType, api: HomeBridge.API) {
         super(log, config, api);
 
         this.platformName = platformName;
@@ -71,8 +75,9 @@ class Platform<PluginType extends PlatformPlugin> extends HomeBridge.Platform {
             // Listen to event "didFinishLaunching", this means homebridge already finished loading cached accessories.
             // Platform Plugin should only register new accessory that doesn't exist in homebridge after this event.
             // Or start discovering new accessories.
+            this.platformPlugin = new pluginConstructor(log, config);
+            
             this.api.on('didFinishLaunching', () => {
-                this.platformPlugin = new pluginConstructor(log, config);
                 this.platformPlugin.on('accessoriesUpdated', this.updateAccessories.bind(this));
                 this.platformPlugin.updateAccessories();
             });
@@ -102,8 +107,10 @@ class Platform<PluginType extends PlatformPlugin> extends HomeBridge.Platform {
     }
 
     public configureAccessory(accessory: PlatformAccessory): void {
-        accessory.reachable = false;
-        this.registeredAccessories.push(accessory);
+        if (this.platformPlugin.configureAccessory(accessory))
+            this.registeredAccessories.push(accessory);
+        else
+            this.api.unregisterPlatformAccessories(this.pluginName, this.platformName, [accessory]);
     }
     
     public configurationRequestHandler(context: HomeBridge.PlatformContext, request: HomeBridge.ConfigurationRequest, callback: HomeBridge.ConfigurationRequestCallback): void {
@@ -115,13 +122,13 @@ class Platform<PluginType extends PlatformPlugin> extends HomeBridge.Platform {
     private platformName: string;
 }
 
-function PlatformBuilder<T extends PlatformPlugin>(pluginName: string, platformName: string, ctor: PluginConstructor<T>): HomeBridge.PlatformConstructor {
-    const originalConstructor : { new (pluginName: string, platformName: string, pluginConstructor: PluginConstructor<T>, log: HomeBridge.Logger, config: Config.Config, api: HomeBridge.API): Platform<T> } = Platform;
+function PlatformBuilder<PluginType extends PlatformPlugin, ConfigType extends HomeBridge.Config>(pluginName: string, platformName: string, ctor: PluginConstructor<PluginType, ConfigType>): HomeBridge.PlatformConstructor {
+    const originalConstructor : { new (pluginName: string, platformName: string, pluginConstructor: PluginConstructor<PluginType, ConfigType>, log: HomeBridge.Logger, config: ConfigType, api: HomeBridge.API): Platform<PluginType, ConfigType> } = Platform;
     const modifiedConstructor = originalConstructor.bind(null, pluginName, platformName, ctor);
     return modifiedConstructor;
 }
 
-export function register<T extends PlatformPlugin>(pluginName: string, platformName: string, pluginConstructor: PluginConstructor<T>) {
+export function register<PluginType extends PlatformPlugin, ConfigType extends HomeBridge.Config>(pluginName: string, platformName: string, pluginConstructor: PluginConstructor<PluginType, ConfigType>) {
     // For platform plugin to be considered as dynamic platform plugin,
     // registerPlatform(pluginName, platformName, constructor, dynamic), dynamic must be true
     return (api: HomeBridge.API) => {

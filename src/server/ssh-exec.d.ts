@@ -1,7 +1,7 @@
 declare module 'ssh-exec' {
     import { Duplex } from "stream";
 
-    export interface Options {
+    interface Options {
         key: string;
         fingerprint: string;
         host: string;
@@ -10,7 +10,7 @@ declare module 'ssh-exec' {
         port: number;
     }
 
-    function exec(command: string, options: string, callback?: (err: Error?, stdout: string, stderr: string) => void): Duplex;
-    function exec<T extends Options>(command: string, options: T, callback?: (err: Error?, stdout: string, stderr: string) => void): Duplex;
+    function exec(command: string, options: string, callback?: (err: Error | null, stdout: string, stderr: string) => void): Duplex;
+    function exec<T extends Options>(command: string, options: T, callback?: (err: Error | null, stdout: string, stderr: string) => void): Duplex;
     export = exec;
 }

@@ -5,23 +5,19 @@ import { PlatformAccessory } from "homebridge/lib/platformAccessory";
 import * as hap from "hap-nodejs";
 import "../util/promise";
 
-export namespace PlatformAccessories {
-    export class Switch extends PlatformAccessory {
-        public constructor(name: string) {
-            const uuid = hap.uuid.generate(name);
-            super(name, uuid);
+const PlatformAccessories = {
+    Switch: function(name: string) {
+        const uuid = hap.uuid.generate(name);
+        let accessory = new PlatformAccessory(name, uuid);
 
-            this.on('identify', (_paired, callback) => {
-                callback();
-            });
-            this.addService(hap.Service.Switch, name);
-        }
+        accessory.on("identify", (_paired, callback) => {
+            callback();
+        });
 
-        protected get PrimaryService(): hap.Service {
-            return this.getService(hap.Service.Switch);
-        }
-    }
-}
+        let service = accessory.addService(hap.Service.Switch, name);
+        return accessory;
+    } as any as { new(name: string): PlatformAccessory }
+};
 
 export enum AccessoryProviderType {
     Docker = "docker",
@@ -30,40 +26,57 @@ export enum AccessoryProviderType {
 
 export interface AccessoryProvider {
     accessories(): Promise<PlatformAccessory[]>;
+    configureAccessory(accessory: PlatformAccessory): void;
+
+    readonly Type: AccessoryProviderType;
 }
 
-export abstract class CommandAccessoryProvider implements AccessoryProvider {
-    public constructor(executor: CommandExecutor) {
-        this.executor = executor;
+export abstract class CachingAccessoryProvider implements AccessoryProvider {
+    public constructor(type: AccessoryProviderType) {
+        this.Type = type;
+        this.accessoryCache = {};
     }
 
-    public abstract accessories(): Promise<PlatformAccessory[]>;
+    public async accessories(): Promise<PlatformAccessory[]> {
+        const accessories = this.queryAccessories();
+        return accessories.then((accessories) => {
+            accessories.forEach((accessory) => {
+                let cachedAccessory = this.accessoryCache[accessory.displayName];
+                if (!cachedAccessory)
+                    this.accessoryCache[accessory.displayName] = accessory;
+            });
+            return accessories;
+        });
+    }
+
+    protected abstract queryAccessories(): Promise<PlatformAccessory[]>;
+    
+    public configureAccessory(accessory: PlatformAccessory): void {
+        this.setupAccessory(accessory);
+        this.accessoryCache[accessory.displayName] = accessory;
+    }
+
+    protected abstract setupAccessory(accessory: PlatformAccessory): void;
+    
+    protected accessoryCache: { [name: string]: PlatformAccessory };
+    public readonly Type: AccessoryProviderType;
+}
+
+export abstract class CommandAccessoryProvider extends CachingAccessoryProvider {
+    public constructor(type: AccessoryProviderType, executor: CommandExecutor) {
+        super(type);
+        this.executor = executor;
+    }
 
     protected executor: CommandExecutor;
 }
 
-class DockerAccessory extends PlatformAccessories.Switch {
-    public constructor(container: Container, executor: CommandExecutor) {
-        const accessoryName = container.Names[0];
-        super(accessoryName);
-
-        const switchService = this.PrimaryService;
-        switchService.setCharacteristic(hap.Characteristic.On, container.Status.startsWith("Up"));
-        switchService.getCharacteristic(hap.Characteristic.On)?.on(hap.CharacteristicEventTypes.SET, async (value: boolean, callback: any) => {
-            const command = (value) ? "docker start " + container.Names[0] : "docker stop " + container.Names[0];
-            const data = executor.run(command);
-
-            await data.finally(callback);
-        });
-    }
-}
-
 export class DockerAccessoryProvider extends CommandAccessoryProvider {
     public constructor(executor: CommandExecutor) {
-        super(executor);
+        super(AccessoryProviderType.Docker, executor);
     }
 
-    public async accessories(): Promise<PlatformAccessory[]> {
+    protected async queryAccessories(): Promise<PlatformAccessory[]> {
         // TODO - Command composition
         // Creating a command descriptor and then composing the command + the jq part would be much more readable
         // Something like this:
@@ -82,24 +95,28 @@ export class DockerAccessoryProvider extends CommandAccessoryProvider {
             return new Array<Container>();
         });
         const accessories = containers.map((container) => {
-            return new DockerAccessory(container, this.executor);
+            let accessory = this.accessoryCache[container.Names[0]];
+
+            if (!accessory) {
+                accessory = new PlatformAccessories.Switch(container.Names[0]);
+                this.setupAccessory(accessory);
+            }
+            const switchService = accessory.services[1];
+            switchService.getCharacteristic(hap.Characteristic.On)?.updateValue(container.Status.startsWith("Up"));
+
+            return accessory;
         });
 
         return accessories;
     }
-}
 
-class VMAccessory extends PlatformAccessories.Switch {
-    public constructor(vm: VM, executor: CommandExecutor) {
-        const accessoryName = vm.Name;
-        super(accessoryName);
-
-        const switchService = this.PrimaryService;
-
-        switchService.setCharacteristic(hap.Characteristic.On, vm.State.startsWith("running"));
+    protected setupAccessory(accessory: PlatformAccessory): void {
+        const switchService = accessory.services[1];
+            
+        let name = accessory.displayName;
         switchService.getCharacteristic(hap.Characteristic.On)?.on(hap.CharacteristicEventTypes.SET, async (value: boolean, callback: any) => {
-            const command = (value) ? "virsh start " + vm.Name : "virsh dompmsuspend " + vm.Name + " disk";
-            const data = executor.run(command);
+            const command = (value) ? "docker start " + name : "docker stop " + name;
+            const data = this.executor.run(command);
 
             await data.finally(callback);
         });
@@ -107,17 +124,43 @@ class VMAccessory extends PlatformAccessories.Switch {
 }
 
 export class LibvirtAccessoryProvider extends CommandAccessoryProvider {
-    async accessories(): Promise<PlatformAccessory[]> {
+    public constructor(executor: CommandExecutor) {
+        super(AccessoryProviderType.Libvirt, executor);
+    }
+
+    protected async queryAccessories(): Promise<PlatformAccessory[]> {
         // TODO - remove that ugly json transformation
         const result = this.executor.run("virsh list --all --name | while read d; do [[ \"$d\" != \"\" ]] && virsh dominfo \"$d\" | tr -d ' ' | sed -e 's/^/\"/g' -e 's/:/\":\"/g' -e 's/$/\",/g'; done | sed -e 's/\"\"/}/g' -e 's/\"Id/{\"Id/g' -e 's/\"SecurityDOI\":\"\\(.*\\)\",/\"SecurityDOI\":\"\\1\"/g' -e 's/},/}/g' | jq -s");
         const vms = result.then((result) => JSON.parse(result) as VM[]).catch((reason) => {
             // might not be a fatal error, machine could be restarting
             return new Array<VM>();
         });
+
         const accessories = vms.map((vm) => {
-            return new VMAccessory(vm, this.executor);
+            let accessory = this.accessoryCache[vm.Name];
+            if (!accessory) {
+                accessory = new PlatformAccessories.Switch(vm.Name);
+                this.setupAccessory(accessory);
+            }
+
+            const switchService = accessory.services[1];
+            switchService.getCharacteristic(hap.Characteristic.On)?.updateValue(vm.State.startsWith("running"));
+
+            return accessory;
         });
 
         return accessories;
+    }
+
+    protected setupAccessory(accessory: PlatformAccessory): void {
+        const switchService = accessory.services[1];
+            
+        let name = accessory.displayName;
+        switchService.getCharacteristic(hap.Characteristic.On)?.on(hap.CharacteristicEventTypes.SET, async (value: boolean, callback: any) => {
+            const command = (value) ? "virsh start " + name : "virsh dompmsuspend " + name + " disk";
+            const data = this.executor.run(command);
+
+            await data.finally(callback);
+        });
     }
 }
