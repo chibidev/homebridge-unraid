@@ -1,5 +1,6 @@
 import { TypedEventEmitter } from "../util/events";
-import { PlatformAccessory } from "homebridge/lib/platformAccessory"
+import { PlatformAccessory } from "homebridge/lib/platformAccessory";
+import { compose } from "../util/functional";
 
 export namespace HomeBridge {
     export interface Logger {
@@ -11,19 +12,6 @@ export namespace HomeBridge {
 
     export interface Config {
     }
-
-    // export interface HAP {
-    //     Service: typeof hap.Service;
-    //     Characteristic: typeof hap.Characteristic;
-    //     uuid: UUIDGenerator;
-    // }
-
-    export interface UUID {
-    }
-
-    // export interface UUIDGenerator {
-    //     generate(name: string) : UUID;
-    // }
 
     export type PlatformConstructor = {
         new(log: Logger, config: Config, api: API): Platform;
@@ -76,7 +64,7 @@ export namespace HomeBridge {
 
     export interface ConfigurationResponse {
         tid: number;
-        sid: UUID;
+        sid: string;
     }
 
     export enum ConfigurationType {
