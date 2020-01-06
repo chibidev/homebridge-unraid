@@ -2,7 +2,7 @@ import { HomeBridge } from "./lib/homebridge";
 import { Config } from "./server/models/config";
 import { Machine } from "./server/machine";
 import * as Platform from "./lib/platform";
-import { flat } from "./util/promise";
+import "./util/promise";
 
 namespace Unraid {
     export class ServerPlugin extends Platform.PollingPlugin {
@@ -18,7 +18,7 @@ namespace Unraid {
             const accessoriesFromAllMachines = this.machines.map((machine) => {
                 return machine.accessories();
             });
-            const accessories = flat(Promise.all(accessoriesFromAllMachines));
+            const accessories = Promise.all(accessoriesFromAllMachines).flat();
 
             return accessories.then((accessories) => {
                 // TODO move this to Platform or PlatformPlugin instead of requiring the user to do this

@@ -1,10 +1,10 @@
-import * as Util from '../../src/util/iterable';
+import '../../src/util/iterable';
 
 describe('Extensions on iterables', () => {
     test('Difference of empty arrays is empty array', () => {
-        let array = [];
-        let otherArray = [];
-        let result = Util.difference(array, otherArray, (lhs, rhs) => {
+        let array: any[] = [];
+        let otherArray: any[] = [];
+        let result = array.difference(otherArray, (lhs, rhs) => {
             return lhs == rhs;
         });
 
@@ -12,9 +12,9 @@ describe('Extensions on iterables', () => {
     });
 
     test('Difference of empty lhs array is empty array', () => {
-        let array = [];
+        let array: any[] = [];
         let otherArray = [1,2,3];
-        let result = Util.difference(array, otherArray, (lhs, rhs) => {
+        let result = array.difference(otherArray, (lhs, rhs) => {
             return lhs == rhs;
         });
 
@@ -23,8 +23,8 @@ describe('Extensions on iterables', () => {
 
     test('Difference of empty rhs array is lhs array', () => {
         let array = [1,2,3];
-        let otherArray = [];
-        let result = Util.difference(array, otherArray, (lhs, rhs) => {
+        let otherArray: number[] = [];
+        let result = array.difference(otherArray, (lhs, rhs) => {
             return lhs == rhs;
         });
 
@@ -37,7 +37,7 @@ describe('Extensions on iterables', () => {
     test('Difference of no intersection is lhs array', () => {
         let array = [1,2,3];
         let otherArray = [4,5,6];
-        let result = Util.difference(array, otherArray, (lhs, rhs) => {
+        let result = array.difference(otherArray, (lhs, rhs) => {
             return lhs == rhs;
         });
 
@@ -50,7 +50,7 @@ describe('Extensions on iterables', () => {
     test('Difference of two arrays is the elements of the lhs minus the intersection', () => {
         let array = [1,2,3];
         let otherArray = [2,3,4];
-        let result = Util.difference(array, otherArray, (lhs, rhs) => {
+        let result = array.difference(otherArray, (lhs, rhs) => {
             return lhs == rhs;
         });
 

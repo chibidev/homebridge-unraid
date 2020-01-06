@@ -1,4 +1,4 @@
-import * as Util from '../../src/util/promise';
+import '../../src/util/promise';
 
 function makePromise<T>(value: T): Promise<T> {
     return new Promise<T>((resolve, reject) => {
@@ -16,14 +16,14 @@ function makePromise<T>(value: T): Promise<T> {
 describe('flat operating on promises', () => {
     test('Flattening empty array should produce empty array', async () => {
         let value = makePromise([] as any[][]);
-        let result = await Util.flat(value);
+        let result = await value.flat();
 
         expect(result.length).toBe(0);
     });
 
     test('Single value produces single element array', async () => {
         let value = makePromise([[1]]);
-        let result = await Util.flat(value);
+        let result = await value.flat();
 
         expect(result.length).toBe(1);
         expect(result[0]).toBe(1);
@@ -31,7 +31,7 @@ describe('flat operating on promises', () => {
 
     test('Same dimension elements should produce single dimension with all elements', async () => {
         let value = makePromise([[0, 1, 2], [3, 4, 5]]);
-        let result = await Util.flat(value);
+        let result = await value.flat();
 
         expect(result.length).toBe(6);
         for (let i = 0; i < 6; ++i) {
@@ -41,7 +41,7 @@ describe('flat operating on promises', () => {
 
     test('Different length arrays are correctly concatenated', async () => {
         let value = makePromise([[0,1], [2,3,4,5], [6,7,8]]);
-        let result = await Util.flat(value);
+        let result = await value.flat();
 
         expect(result.length).toBe(9);
         for (let i = 0; i < 9; ++i) {
@@ -53,7 +53,7 @@ describe('flat operating on promises', () => {
 describe('map operating on promises', () => {
     test('Mapping empty array should produce empty array', async () => {
         let value = makePromise([]);
-        let result = await Util.map(value, () => {
+        let result = await value.map(() => {
             return 1;
         });
 
@@ -62,7 +62,7 @@ describe('map operating on promises', () => {
 
     test('Single element array should produce single element array with appropriate value', async () => {
         let value = makePromise([1]);
-        let result = await Util.map(value, (value) => {
+        let result = await value.map((value) => {
             return value.toString();
         });
 

@@ -1,9 +1,9 @@
 import { CommandExecutor } from "./commands";
 import { Container } from "./models/container";
 import { VM } from "./models/vm";
-import { map } from "../util/promise";
 import { PlatformAccessory } from "homebridge/lib/platformAccessory";
 import * as hap from "hap-nodejs";
+import "../util/promise";
 
 export namespace PlatformAccessories {
     export class Switch extends PlatformAccessory {
@@ -81,7 +81,7 @@ export class DockerAccessoryProvider extends CommandAccessoryProvider {
             // We might need to propagate the reason though...
             return new Array<Container>();
         });
-        const accessories = map(containers, (container) => {
+        const accessories = containers.map((container) => {
             return new DockerAccessory(container, this.executor);
         });
 
@@ -114,7 +114,7 @@ export class LibvirtAccessoryProvider extends CommandAccessoryProvider {
             // might not be a fatal error, machine could be restarting
             return new Array<VM>();
         });
-        const accessories = map(vms, (vm) => {
+        const accessories = vms.map((vm) => {
             return new VMAccessory(vm, this.executor);
         });
 

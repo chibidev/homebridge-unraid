@@ -1,8 +1,8 @@
 import { HomeBridge } from "../lib/homebridge";
 import { Config } from "../server/models/config";
-import { difference } from "../util/iterable";
 import { TypedEventEmitter } from "../util/events";
 import { PlatformAccessory } from "homebridge/lib/platformAccessory";
+import "../util/iterable";
 
 interface PluginEvents {
     accessoriesUpdated: PlatformAccessory[];
@@ -80,17 +80,17 @@ class Platform<PluginType extends PlatformPlugin> extends HomeBridge.Platform {
     }
 
     private updateAccessories(accessories: PlatformAccessory[]): void {
-        const accessoriesToRemove = difference(this.registeredAccessories, accessories, (lhs, rhs) => {
+        const accessoriesToRemove = this.registeredAccessories.difference(accessories, (lhs, rhs) => {
             return lhs.displayName == rhs.displayName;
         });
         
-        const newAccessories = difference(accessories, this.registeredAccessories, (lhs, rhs) => {
+        const newAccessories = accessories.difference(this.registeredAccessories, (lhs, rhs) => {
             return lhs.displayName == rhs.displayName;
         });
 
         if (accessoriesToRemove.length > 0) {
             this.api.unregisterPlatformAccessories(this.pluginName, this.platformName, accessoriesToRemove);
-            this.registeredAccessories = difference(this.registeredAccessories, accessoriesToRemove, (lhs, rhs) => {
+            this.registeredAccessories = this.registeredAccessories.difference(accessoriesToRemove, (lhs, rhs) => {
                 return lhs.displayName == rhs.displayName
             });
         }

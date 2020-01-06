@@ -2,8 +2,8 @@ import { Config } from "./models/config";
 import { CommandExecutor, SSHCommandExecutor } from "./commands";
 import { HomeBridge } from "../lib/homebridge";
 import * as Providers from "./provider";
-import { flat } from "../util/promise";
 import { PlatformAccessory } from "homebridge/lib/platformAccessory";
+import "../util/promise";
 
 export class Machine {
     public constructor(config: Config.Machine) {
@@ -28,9 +28,9 @@ export class Machine {
     }
 
     public async accessories(): Promise<PlatformAccessory[]> {
-        const accessories = flat(Promise.all(this.providers.map((provider) => {
+        const accessories = Promise.all(this.providers.map((provider) => {
             return provider.accessories();
-        })));
+        })).flat();
 
         return accessories;
     }

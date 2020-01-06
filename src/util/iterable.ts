@@ -1,10 +1,22 @@
-export function difference<T, U>(lhs: T[], rhs: U[], predicate: (t: T, u: U) => boolean): T[] {
-    const result = lhs.filter((t) => {
-        const findFunction = predicate.bind(null, t);
-        const found = rhs.find(findFunction) != undefined;
+export {};
 
-        return !found;
-    });
-
-    return result;
+declare global {
+    interface Array<T> {
+        difference<U>(toArray: U[], predicate: (lhs: T, rhs: U) => boolean): T[];
+    }
 }
+
+// Don't use Array.prototype.difference = function()... Something in HomeBridge breaks if the function is enumerable.
+
+Object.defineProperty(Array.prototype, "difference", {
+    value: function<T, U>(this: Array<T>, toArray: U[], predicate: (lhs: T, rhs: U) => boolean): T[] {
+        const result = this.filter((t) => {
+            const findFunction = predicate.bind(null, t);
+            const found = toArray.find(findFunction) != undefined;
+
+            return !found;
+        });
+
+        return result;
+    }
+});
