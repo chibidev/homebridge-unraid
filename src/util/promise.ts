@@ -1,14 +1,27 @@
-export async function map<T, U>(promise: Promise<T[]>, generator: (element: T) => U) : Promise<U[]> {
-    return wrapForPromise<T[], U[]>(Array.prototype.map, promise, generator);
+export {};
+
+declare global {
+    interface Promise<T> {
+        forEach<U>(this: Promise<U[]>, loop: (element: U) => void): Promise<void>;
+        flat<U>(this: Promise<U[][]>): Promise<U[]>;
+        map<U, V>(this: Promise<U[]>, mapping: (element: U) => V): Promise<V[]>;
+    }
 }
 
-export async function flat<T>(promise: Promise<T[][]>) : Promise<T[]> {
-    return wrapForPromise<T[][], T[]>(Array.prototype.flat, promise);
-}
-
-async function wrapForPromise<T, U>(func: (...args: any[]) => U, promise: Promise<T>, ...params: any[]) {
-    const result = promise.then((value) => {
-        return func.call(value, ...params);
+Promise.prototype.forEach = async function(loop) {
+    return this.then((arr) => {
+        arr.forEach(loop);
     });
-    return result;
+};
+
+Promise.prototype.flat = async function() {
+    return this.then((arr) => {
+        return arr.flat();
+    });
+}
+
+Promise.prototype.map = async function(mapping) {
+    return this.then((arr) => {
+        return arr.map(mapping);
+    });
 }

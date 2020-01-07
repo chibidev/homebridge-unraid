@@ -1,10 +1,11 @@
 import { HomeBridge } from "../lib/homebridge";
 import { Config } from "../server/models/config";
-import { difference } from "../util/iterable";
 import { TypedEventEmitter } from "../util/events";
+import { PlatformAccessory } from "homebridge/lib/platformAccessory";
+import "../util/iterable";
 
 interface PluginEvents {
-    accessoriesUpdated: HomeBridge.Accessories.PlatformAccessory[];
+    accessoriesUpdated: PlatformAccessory[];
 }
 
 export abstract class PlatformPlugin extends TypedEventEmitter<PluginEvents> {
@@ -13,7 +14,11 @@ export abstract class PlatformPlugin extends TypedEventEmitter<PluginEvents> {
         this.logger = log;
     }
     
-    public abstract updateAccessories(context: HomeBridge.Accessories.Context): Promise<void>;
+    public configureAccessory(accessory: PlatformAccessory): boolean {
+        return false;
+    }
+    
+    public abstract updateAccessories(): Promise<void>;
     
     protected logger: HomeBridge.Logger;
 }
@@ -26,20 +31,19 @@ export abstract class PollingPlugin extends PlatformPlugin {
         this.timerID = null;
     }
 
-    public async updateAccessories(accessoryContext: HomeBridge.Accessories.Context): Promise<void> {
-        this.lastAccessoryContext = accessoryContext;
-        this.updateAccessoriesNow(accessoryContext);
+    public async updateAccessories(): Promise<void> {
+        this.updateAccessoriesNow();
         this.startPolling();
     }
 
-    protected abstract async updateAccessoriesNow(accessoryContext: HomeBridge.Accessories.Context): Promise<void>;
+    protected abstract async updateAccessoriesNow(): Promise<void>;
 
     protected startPolling() {
         if (this.timerID != null)
             return;
 
         this.timerID = setInterval(() => {
-            this.updateAccessoriesNow(this.lastAccessoryContext);
+            this.updateAccessoriesNow();
         }, this.secondsInterval * 1000);
     }
 
@@ -52,16 +56,15 @@ export abstract class PollingPlugin extends PlatformPlugin {
     }
 
     private secondsInterval: number;
-    private lastAccessoryContext: HomeBridge.Accessories.Context;
     private timerID: NodeJS.Timeout | null;
 }
 
-export type PluginConstructor<T> = {
-    new (log: HomeBridge.Logger, config: Config.Config): T;
+export type PluginConstructor<PluginType extends PlatformPlugin, ConfigType extends HomeBridge.Config> = {
+    new (log: HomeBridge.Logger, config: ConfigType): PluginType;
 }
 
-class Platform<PluginType extends PlatformPlugin> extends HomeBridge.Platform {
-    public constructor(pluginName: string, platformName: string, pluginConstructor: PluginConstructor<PluginType>, log: HomeBridge.Logger, config: Config.Config, api: HomeBridge.API) {
+class Platform<PluginType extends PlatformPlugin, ConfigType extends HomeBridge.Config> extends HomeBridge.Platform {
+    public constructor(pluginName: string, platformName: string, pluginConstructor: PluginConstructor<PluginType, ConfigType>, log: HomeBridge.Logger, config: ConfigType, api: HomeBridge.API) {
         super(log, config, api);
 
         this.platformName = platformName;
@@ -69,30 +72,30 @@ class Platform<PluginType extends PlatformPlugin> extends HomeBridge.Platform {
         this.registeredAccessories = [];
 
         if (api) {
-            let context = new HomeBridge.Accessories.Context(api.platformAccessory);
             // Listen to event "didFinishLaunching", this means homebridge already finished loading cached accessories.
             // Platform Plugin should only register new accessory that doesn't exist in homebridge after this event.
             // Or start discovering new accessories.
+            this.platformPlugin = new pluginConstructor(log, config);
+            
             this.api.on('didFinishLaunching', () => {
-                this.platformPlugin = new pluginConstructor(log, config);
                 this.platformPlugin.on('accessoriesUpdated', this.updateAccessories.bind(this));
-                this.platformPlugin.updateAccessories(context);
+                this.platformPlugin.updateAccessories();
             });
         }
     }
 
-    private updateAccessories(accessories: HomeBridge.Accessories.PlatformAccessory[]): void {
-        const accessoriesToRemove = difference(this.registeredAccessories, accessories, (lhs, rhs) => {
+    private updateAccessories(accessories: PlatformAccessory[]): void {
+        const accessoriesToRemove = this.registeredAccessories.difference(accessories, (lhs, rhs) => {
             return lhs.displayName == rhs.displayName;
         });
         
-        const newAccessories = difference(accessories, this.registeredAccessories, (lhs, rhs) => {
+        const newAccessories = accessories.difference(this.registeredAccessories, (lhs, rhs) => {
             return lhs.displayName == rhs.displayName;
         });
 
         if (accessoriesToRemove.length > 0) {
             this.api.unregisterPlatformAccessories(this.pluginName, this.platformName, accessoriesToRemove);
-            this.registeredAccessories = difference(this.registeredAccessories, accessoriesToRemove, (lhs, rhs) => {
+            this.registeredAccessories = this.registeredAccessories.difference(accessoriesToRemove, (lhs, rhs) => {
                 return lhs.displayName == rhs.displayName
             });
         }
@@ -103,27 +106,29 @@ class Platform<PluginType extends PlatformPlugin> extends HomeBridge.Platform {
         }
     }
 
-    public configureAccessory(accessory: HomeBridge.Accessories.PlatformAccessory): void {
-        accessory.reachable = false;
-        this.registeredAccessories.push(accessory);
+    public configureAccessory(accessory: PlatformAccessory): void {
+        if (this.platformPlugin.configureAccessory(accessory))
+            this.registeredAccessories.push(accessory);
+        else
+            this.api.unregisterPlatformAccessories(this.pluginName, this.platformName, [accessory]);
     }
     
     public configurationRequestHandler(context: HomeBridge.PlatformContext, request: HomeBridge.ConfigurationRequest, callback: HomeBridge.ConfigurationRequestCallback): void {
     }
 
     private platformPlugin: PluginType;
-    private registeredAccessories: HomeBridge.Accessories.PlatformAccessory[];
+    private registeredAccessories: PlatformAccessory[];
     private pluginName: string;
     private platformName: string;
 }
 
-function PlatformBuilder<T extends PlatformPlugin>(pluginName: string, platformName: string, ctor: PluginConstructor<T>): HomeBridge.PlatformConstructor {
-    const originalConstructor : { new (pluginName: string, platformName: string, pluginConstructor: PluginConstructor<T>, log: HomeBridge.Logger, config: Config.Config, api: HomeBridge.API): Platform<T> } = Platform;
+function PlatformBuilder<PluginType extends PlatformPlugin, ConfigType extends HomeBridge.Config>(pluginName: string, platformName: string, ctor: PluginConstructor<PluginType, ConfigType>): HomeBridge.PlatformConstructor {
+    const originalConstructor : { new (pluginName: string, platformName: string, pluginConstructor: PluginConstructor<PluginType, ConfigType>, log: HomeBridge.Logger, config: ConfigType, api: HomeBridge.API): Platform<PluginType, ConfigType> } = Platform;
     const modifiedConstructor = originalConstructor.bind(null, pluginName, platformName, ctor);
     return modifiedConstructor;
 }
 
-export function register<T extends PlatformPlugin>(pluginName: string, platformName: string, pluginConstructor: PluginConstructor<T>) {
+export function register<PluginType extends PlatformPlugin, ConfigType extends HomeBridge.Config>(pluginName: string, platformName: string, pluginConstructor: PluginConstructor<PluginType, ConfigType>) {
     // For platform plugin to be considered as dynamic platform plugin,
     // registerPlatform(pluginName, platformName, constructor, dynamic), dynamic must be true
     return (api: HomeBridge.API) => {

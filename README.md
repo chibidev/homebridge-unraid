@@ -45,6 +45,7 @@ You might need to restart HomeBridge to recognize the new plugin and load the ne
             "name": "Unraid",
             "machines": [
                 {
+                    "id": "FirstUnraidServer",
                     "address": {
                         "type": "ssh",
                         "params": {
@@ -57,6 +58,7 @@ You might need to restart HomeBridge to recognize the new plugin and load the ne
                     ]
                 },
                 {
+                    "id": "ContainerServer",
                     "address": {
                         "type": "ssh",
                         "params": {

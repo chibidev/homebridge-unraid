@@ -1,6 +1,6 @@
 {
     "name": "homebridge-unraid",
-    "version": "0.1.7",
+    "version": "0.2.0",
     "repository": {
         "type": "git",
         "url": "git+https://github.com/chibidev/homebridge-unraid.git"
@@ -13,6 +13,7 @@
     "devDependencies": {
         "@types/jest": "^24.0.25",
         "@types/node": "^12.12.14",
+        "homebridge": "^0.4.50",
         "jest": "^24.9.0",
         "ts-jest": "^24.2.0",
         "typescript": "^3.7.4"
