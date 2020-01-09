@@ -52,10 +52,14 @@ You might need to restart HomeBridge to recognize the new plugin and load the ne
                             "ip": "user@192.168.1.1"
                         }
                     },
-                    "providers": [
-                        "libvirt",
-                        "docker"
-                    ]
+                    "enableContainers": true,
+                    "enableVMs": true,
+                    "host": {
+                        "publish": true,
+                        "switchOffMechanism": "suspend",
+                        "mac": "xx:xx:xx:xx:xx:xx",
+                        "ip": "192.168.1.1"
+                    }
                 },
                 {
                     "id": "ContainerServer",
@@ -65,9 +69,11 @@ You might need to restart HomeBridge to recognize the new plugin and load the ne
                             "ip": "root@192.168.1.2"
                         }
                     },
-                    "providers": [
-                        "docker"
-                    ]
+                    "enableContainers": true,
+                    "enableVMs": false,
+                    "host": {
+                        "publish": false
+                    }
                 }
             ],
             "updateInterval": 5
@@ -76,20 +82,13 @@ You might need to restart HomeBridge to recognize the new plugin and load the ne
 }
 ```
 
-## Supported providers
-* libvirt - for all your libvirt-based VMs
-* docker - for all your containers
-
-More providers might be added later. Check the GitHub issues if you miss something, and if it's not already there feel free to add it as an enhancement. \
-Or send a pull request. I love PRs.
-
 ## Supported server addresses
 Currently all servers must be reachable via **ssh** as it is the only available remote management tool. And there are also a few limitations you need to adhere to:
 1. The server's fingerprint needs to be known. Currently it's not possible to acknowledge and provide feedback whether the server is who we think we are, so in case the server's fingerprint is unknown the commands will fail and no accessories will be present.
 2. Kinda similar issue with user accounts with passwords. Either set up key-based authentication, or provide a user that has very limited permissions on the server and therefore can be passwordless.
 
 More ways to reach the servers and run commands on it might be added later. Check the GitHub issues if you miss a particular way, and if it's not already there feel free to add it as an enhancement. \
-Or send a pull request. I still love PRs.
+Or send a pull request. I love PRs.
 
 # Troubleshooting
 
