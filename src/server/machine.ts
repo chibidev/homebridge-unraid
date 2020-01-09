@@ -4,9 +4,14 @@ import * as Providers from "./provider";
 import { PlatformAccessory } from "homebridge/lib/platformAccessory";
 import "../util/promise";
 
+import { DockerAccessoryProvider } from "./providers/docker";
+import { HostAccessoryProvider } from "./providers/host";
+import { LibvirtAccessoryProvider } from "./providers/libvirt";
+
 export class Machine {
     public constructor(config: Config.Machine) {
         this.Id = config.id;
+        this.providers = [];
 
         let commandExecutor: CommandExecutor;
         switch (config.address.type) {
@@ -18,14 +23,12 @@ export class Machine {
                     throw new Error("Invalid configuration for command execution");
         }
 
-        this.providers = config.providers.map((value) => {
-            switch (value) {
-                case Providers.AccessoryProviderType.Docker:
-                    return new Providers.DockerAccessoryProvider(commandExecutor);
-                case Providers.AccessoryProviderType.Libvirt:
-                    return new Providers.LibvirtAccessoryProvider(commandExecutor);
-            }
-        });
+        if (config.enableContainers)
+            this.providers.push(new DockerAccessoryProvider(commandExecutor));
+        if (config.enableVMs)
+            this.providers.push(new LibvirtAccessoryProvider(commandExecutor));
+        if (config.host.publish)
+            this.providers.push(new HostAccessoryProvider(commandExecutor, config.host));
     }
 
     public async accessories(): Promise<PlatformAccessory[]> {
