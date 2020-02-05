@@ -1,6 +1,7 @@
 import { TypedEventEmitter } from "../util/events";
 import { PlatformAccessory } from "homebridge/lib/platformAccessory";
-import { compose } from "../util/functional";
+import * as Config from "./config";
+import * as hap from "hap-nodejs";
 
 export namespace HomeBridge {
     export interface Logger {
@@ -10,8 +11,10 @@ export namespace HomeBridge {
         error(message: string): void;
     }
 
-    export interface Config {
-    }
+    export type Config = Config.Config;
+    export type ConfigTraits<T> = Config.Traits<T>;
+
+    export const InitConfig = Config.initialize;
 
     export type PlatformConstructor = {
         new(log: Logger, config: Config, api: API): Platform;
@@ -35,24 +38,28 @@ export namespace HomeBridge {
         didFinishLaunching: void;
     }
 
-    export interface API extends TypedEventEmitter<APIEvents> {
-        version: number;
-        serverVersion: number;
-        user: User;
-        // hap: HAP; // intentionally excluding from exported interface
-        // hapLegacyTypes: any; // intentionally excluding from exported interface
-        platformAccessory: any;
-
-        registerAccessory(pluginName: string, accessoryName: string, constructor: any, configurationRequestHandler: any): void;
+    export interface AccessoryAPI extends TypedEventEmitter<APIEvents> {
+        registerAccessory(pluginName: string, accessoryName: string, constructor: typeof hap.Accessory/*, configurationRequestHandler: any */): void; // intentionally excluding last parameter from exposed interface
         publishCameraAccessories(pluginName: string, accessories: PlatformAccessory[]): void;
         publishExternalAccessories(pluginName: string, accessories: PlatformAccessory[]): void;
+    }
 
+    export interface PlatformAPI extends TypedEventEmitter<APIEvents> {
         platform(name: string): any;
 
         registerPlatform(pluginName: string, platformName: string, constructor: typeof Platform, dynamic: boolean): void;
         registerPlatformAccessories(pluginName: string, platformName: string, accessories: PlatformAccessory[]): void;
-        updatePlatformAccessories(accessories: PlatformAccessory[]): void;
+        // updatePlatformAccessories(accessories: PlatformAccessory[]): void; // intentionally excluding
         unregisterPlatformAccessories(pluginName: string, platformName: string, accessories: PlatformAccessory[]): void;
+    }
+
+    export interface API extends AccessoryAPI, PlatformAPI {
+        readonly version: number;
+        readonly serverVersion: number;
+        readonly user: User;
+        // hap: HAP; // intentionally excluding from exported interface
+        // hapLegacyTypes: any; // intentionally excluding from exported interface
+        readonly platformAccessory: typeof PlatformAccessory;
     }
 
     export interface PlatformContext {
@@ -81,7 +88,7 @@ export namespace HomeBridge {
         // Platform constructor
         // config may be null
         // api may be null if launched from old homebridge version
-        public constructor(log: HomeBridge.Logger, config: Config, api: API) {
+        public constructor(log: HomeBridge.Logger, config: Config | null, api: PlatformAPI) {
             this.api = api;
         }
         
@@ -95,6 +102,6 @@ export namespace HomeBridge {
         public configurationRequestHandler(context: PlatformContext, request: ConfigurationRequest, callback: ConfigurationRequestCallback) : void {
         }
 
-        protected api: API;
+        protected api: PlatformAPI;
     }
 }

@@ -1,5 +1,4 @@
 import { HomeBridge } from '../../lib/homebridge';
-import { compose } from "../../util/functional";
 
 export namespace Config {
     namespace v1 {
@@ -84,7 +83,6 @@ export namespace Config {
         export type Address = v2.Address;
         export type SSHParams = v2.SSHParams;
         export type SSHAddress = v2.SSHAddress;
-        export import AccessoryProviderType = v2.AccessoryProviderType;
 
         export enum SwitchOffMechanism {
             ShutDown = "shutdown",
@@ -119,8 +117,8 @@ export namespace Config {
                 let v3Machine = {
                     id: v2Machine.id,
                     address: v2Machine.address,
-                    enableContainers: v2Machine.providers.includes(AccessoryProviderType.Docker),
-                    enableVMs: v2Machine.providers.includes(AccessoryProviderType.Libvirt),
+                    enableContainers: v2Machine.providers.includes(v2.AccessoryProviderType.Docker),
+                    enableVMs: v2Machine.providers.includes(v2.AccessoryProviderType.Libvirt),
                     host: {
                         publish: false,
                         switchOffMechanism: SwitchOffMechanism.SuspendToRAM
@@ -135,9 +133,14 @@ export namespace Config {
 
             return v3Config;
         }
+
+        export const DefaultConfig: Config = {
+            machines: [],
+            updateInterval: 15
+        };
     }
 
-    export function configVersion(config: HomeBridge.Config): number {
+    function version(config: HomeBridge.Config): number {
         let v1Config = config as v1.Config;
         if (v1Config.providers)
             return v1.VersionNumber;
@@ -150,26 +153,21 @@ export namespace Config {
         return currentVersionNumber;
     }
 
+    const defaultConfig = v3.DefaultConfig;
     const migrationSequence = [v2.migrate, v3.migrate];
     const currentVersionNumber = v3.VersionNumber;
 
-    export function migrate(config: HomeBridge.Config) {
-        let version = configVersion(config)
-        if (version == currentVersionNumber)
-            return config as Config;
-        const seq = migrationSequence.slice(version, currentVersionNumber);
-
-        let migrationFunction = compose(seq);
-        let newConfig = migrationFunction(config) as Config;
-
-        return newConfig;
+    export const Traits = {
+        defaultConfig: defaultConfig,
+        versionFunction: version,
+        currentVersionNumber: currentVersionNumber,
+        migrationSequence: migrationSequence
     }
 
     export import AddressType = v3.AddressType;
     export type Address = v3.Address;
     export type SSHParams = v3.SSHParams;
     export type SSHAddress = v3.SSHAddress;
-    export import AccessoryProviderType = v3.AccessoryProviderType;
     export import SwitchOffMechanism = v3.SwitchOffMechanism;
     export type HostConfig = v3.HostConfig;
     export type Machine = v3.Machine;

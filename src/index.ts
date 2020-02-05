@@ -8,19 +8,6 @@ import "./util/promise";
 namespace Unraid {
     export class ServerPlugin extends Platform.PollingPlugin {
         public constructor(log: HomeBridge.Logger, config: Config.Config) {
-            if (!config) {
-                config = {
-                    updateInterval: 60,
-                    machines: []
-                }
-            } else {
-                if (!config.updateInterval)
-                    config.updateInterval = 60;
-                if (!config.machines)
-                    config.machines = [];
-            }
-            config = Config.migrate(config);
-
             super(log, config, config.updateInterval);
 
             this.machines = config.machines.map((machineConfig) => {
@@ -45,20 +32,17 @@ namespace Unraid {
             return owner.configureAccessory(accessory);
         }
 
-        protected async updateAccessoriesNow(): Promise<void> {
+        protected async updateAccessories(): Promise<PlatformAccessory[]> {
             const accessoriesFromAllMachines = this.machines.map((machine) => {
                 return machine.accessories();
             });
             const accessories = Promise.all(accessoriesFromAllMachines).flat();
 
-            return accessories.then((accessories) => {
-                // TODO move this to Platform or PlatformPlugin instead of requiring the user to do this
-                this.emit('accessoriesUpdated', accessories);
-            });
+            return accessories;
         }
 
         private machines: Machine[];
     }
 }
 
-export default Platform.register("homebridge-unraid", "UnraidServerPlatform", Unraid.ServerPlugin);
+export default Platform.register("homebridge-unraid", "UnraidServerPlatform", Unraid.ServerPlugin, Config.Traits);

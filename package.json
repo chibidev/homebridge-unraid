@@ -1,6 +1,6 @@
 {
     "name": "homebridge-unraid",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "repository": {
         "type": "git",
         "url": "git+https://github.com/chibidev/homebridge-unraid.git"
@@ -11,20 +11,21 @@
         "url": "https://github.com/chibidev/homebridge-unraid/issues"
     },
     "devDependencies": {
-        "@types/jest": "^24.0.25",
-        "@types/node": "^12.12.14",
-        "@types/ping": "^0.2.0",
-        "@types/wake_on_lan": "0.0.27",
-        "homebridge": "^0.4.50",
-        "jest": "^24.9.0",
-        "ts-jest": "^24.2.0",
-        "typescript": "^3.7.4"
+        "@types/jest": "24.0.x",
+        "@types/lodash": "4.14.x",
+        "@types/node": "12.12.x",
+        "@types/ping": "0.2.x",
+        "@types/wake_on_lan": "0.0.x",
+        "homebridge": "0.4.x",
+        "jest": "24.9.x",
+        "ts-jest": "24.2.x",
+        "typescript": "3.7.x"
     },
     "dependencies": {
-        "hap-nodejs": "^0.5.4",
-        "ping": "^0.2.2",
-        "ssh-exec": "^2.0.0",
-        "wake_on_lan": "^1.0.0"
+        "hap-nodejs": "0.5.x",
+        "ping": "0.2.x",
+        "ssh-exec": "2.0.x",
+        "wake_on_lan": "1.0.x"
     },
     "files": [
         "dist/**/*.js",

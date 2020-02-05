@@ -16,11 +16,11 @@ export class Machine {
         let commandExecutor: CommandExecutor;
         switch (config.address.type) {
             case Config.AddressType.SSH:
-                    const sshConfig = config.address as Config.SSHAddress;
-                    commandExecutor = new SSHCommandExecutor(sshConfig.params.ip);
-                    break;
+                const sshConfig = config.address as Config.SSHAddress;
+                commandExecutor = new SSHCommandExecutor(sshConfig.params.ip);
+                break;
             default:
-                    throw new Error("Invalid configuration for command execution");
+                throw new Error("Invalid configuration for command execution");
         }
 
         if (config.enableContainers)

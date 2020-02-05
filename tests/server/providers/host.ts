@@ -11,6 +11,10 @@ import { PlatformAccessories } from "../../../src/server/provider";
 jest.mock("ping");
 
 describe("Host Accessory Provider", () => {
+    // In the following test cases "inaccessible" means that the machine is currently shut down,
+    // not connected to the network, or anything else prevents us from communicating with it.
+    // Unconfigured/configured means whether the server was at least once accessible since we
+    // enabled publishing the host accessory.
     test("Inaccessible, unconfigured server publishes no accessory and runs nothing", async () => {
         let config = {
         } as Config.HostConfig;
