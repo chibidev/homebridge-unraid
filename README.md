@@ -46,15 +46,14 @@ You might need to restart HomeBridge to recognize the new plugin and load the ne
             "machines": [
                 {
                     "id": "FirstUnraidServer",
-                    "address": {
-                        "type": "ssh",
-                        "params": {
-                            "ip": "user@192.168.1.1"
-                        }
-                    },
                     "enableContainers": true,
                     "enableVMs": true,
                     "host": {
+                        "monitor": {
+                            "type": "ssh+poll",
+                            "interval": 15,
+                            "ip": "user@192.168.1.1"
+                        },
                         "publish": true,
                         "switchOffMechanism": "suspend",
                         "mac": "xx:xx:xx:xx:xx:xx",
@@ -63,16 +62,16 @@ You might need to restart HomeBridge to recognize the new plugin and load the ne
                 },
                 {
                     "id": "ContainerServer",
-                    "address": {
-                        "type": "ssh",
-                        "params": {
-                            "ip": "root@192.168.1.2"
-                        }
-                    },
                     "enableContainers": true,
                     "enableVMs": false,
                     "host": {
-                        "publish": false
+                        "monitor": {
+                            "type": "ssh+poll",
+                            "interval": 15,
+                            "ip": "user@192.168.1.2"
+                        },
+                        "publish": false,
+                        "ip": "192.168.1.2"
                     }
                 }
             ],

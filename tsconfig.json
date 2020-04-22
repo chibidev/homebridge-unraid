@@ -22,7 +22,9 @@
             }
         ],
         "skipLibCheck": true,
-        "incremental": true
+        "incremental": true,
+        "emitDecoratorMetadata": true,
+        "experimentalDecorators": true
     },
     "include": [
         "src/**/*.ts"

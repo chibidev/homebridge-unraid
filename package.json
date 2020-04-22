@@ -1,6 +1,6 @@
 {
     "name": "homebridge-unraid",
-    "version": "0.3.1",
+    "version": "0.4.0",
     "repository": {
         "type": "git",
         "url": "git+https://github.com/chibidev/homebridge-unraid.git"
@@ -11,18 +11,19 @@
         "url": "https://github.com/chibidev/homebridge-unraid/issues"
     },
     "devDependencies": {
-        "@types/jest": "24.0.x",
-        "@types/lodash": "4.14.x",
+        "@types/lodash.clonedeep": "4.5.x",
+        "@types/lodash.merge": "4.6.x",
         "@types/node": "12.12.x",
         "@types/ping": "0.2.x",
         "@types/wake_on_lan": "0.0.x",
-        "homebridge": "0.4.x",
-        "jest": "24.9.x",
-        "ts-jest": "24.2.x",
-        "typescript": "3.7.x"
+        "hap-nodejs": "^0.5.9",
+        "homebridge": "0.4.x-beta",
+        "tslint": "6.1.x",
+        "typescript": "3.8.x"
     },
     "dependencies": {
-        "hap-nodejs": "0.5.x",
+        "lodash.clonedeep": "4.5.x",
+        "lodash.merge": "4.6.x",
         "ping": "0.2.x",
         "ssh-exec": "2.0.x",
         "wake_on_lan": "1.0.x"

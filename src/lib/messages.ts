@@ -1,0 +1,2 @@
+export const NoConfig = "No configuration found. The platform will be initialized with the default configuration.";
+export const ConfigUpdateRequired = "Your config is outdated. It will be temporarily converted to the latest format, but you should consider updating your config file.";

@@ -1,9 +1,50 @@
 import { TypedEventEmitter } from "../util/events";
-import { PlatformAccessory } from "homebridge/lib/platformAccessory";
 import * as Config from "./config";
 import * as hap from "hap-nodejs";
 
 export namespace HomeBridge {
+    // Importing the PlatformAccessory class directly will create a different PlatformAccessory class
+    // than what homebridge is using when importing our plugin. Therefore in order not to duplicate the
+    // class and result in an error thrown by the server (due to the differing type), we're using the parent
+    // module to import the constructor.
+    //
+    // With this we can run homebridge without having to install/deploy homebridge-unraid every single time.
+    //
+    // Since type and constructor are two different things in Typescript, we need two declarations of the same
+    // thing.
+    //
+    // If Homebridge ever migrates to Typescript, this will be easily replaced by a similar single import
+    // statement.
+    //
+    // import { PlatformAccessory } from "homebridge/lib/platformAccessory";
+
+    interface PlatformAccessoryEvents {
+        identify: boolean;
+    }
+
+    export interface PlatformAccessory {
+        reachable: boolean;
+        displayName: string;
+        UUID: string;
+        category: hap.Categories;
+        services: hap.Service[];
+        context: any;
+
+        addService(service: hap.Service): hap.Service;
+        addService(service: { new (...params: any[]) : hap.Service }, ...params: any[]): hap.Service;
+        removeService(service: hap.Service): void;
+        getService(serviceName: string): hap.Service | undefined;
+        getService(service: typeof hap.Service): hap.Service | undefined;
+        getServiceByUUIDAndSubType(serviceName: string, subtype: string): hap.Service | undefined;
+        getServiceByUUIDAndSubType(uuid: string, subtype: string): hap.Service | undefined;
+        getServiceByUUIDAndSubType(service: typeof hap.Service, subtype: string): hap.Service | undefined;
+        updateReachability(reachable: false): void;
+
+        on<K extends keyof PlatformAccessoryEvents>(name: K, listener: (value: PlatformAccessoryEvents[K], ...params: any[]) => void): this;
+    }
+
+    export let PlatformAccessory: new(name: string, uuid: string) => PlatformAccessory = require.main?.require("../lib/platformAccessory").PlatformAccessory;
+
     export interface Logger {
         debug(message: string): void;
         info(message: string): void;
@@ -15,6 +56,8 @@ export namespace HomeBridge {
     export type ConfigTraits<T> = Config.Traits<T>;
 
     export const InitConfig = Config.initialize;
+    export const InitialConfigVersionNumber = Config.InitialVersionNumber;
+    export const NextVersion = Config.nextVersion;
 
     export type PlatformConstructor = {
         new(log: Logger, config: Config, api: API): Platform;
@@ -38,8 +81,15 @@ export namespace HomeBridge {
         didFinishLaunching: void;
     }
 
-    export interface AccessoryAPI extends TypedEventEmitter<APIEvents> {
-        registerAccessory(pluginName: string, accessoryName: string, constructor: typeof hap.Accessory/*, configurationRequestHandler: any */): void; // intentionally excluding last parameter from exposed interface
+    export abstract class Accessory {
+        public constructor(log: Logger, config: Config | null) {
+        }
+
+        public abstract getServices(): hap.Service[];
+    }
+
+    export interface AccessoryAPI {
+        registerAccessory(pluginName: string, accessoryName: string, constructor: typeof Accessory/*, configurationRequestHandler: any */): void; // intentionally excluding last parameter from exposed interface
         publishCameraAccessories(pluginName: string, accessories: PlatformAccessory[]): void;
         publishExternalAccessories(pluginName: string, accessories: PlatformAccessory[]): void;
     }

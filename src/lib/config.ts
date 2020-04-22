@@ -1,4 +1,5 @@
-import { cloneDeep, merge } from "lodash";
+import cloneDeep = require("lodash.clonedeep");
+import merge = require("lodash.merge");
 import { compose } from "../util/functional";
 
 export interface Config {
@@ -16,8 +17,8 @@ function createMigrationFunction<T>(versionFunction: (config: Config) => number,
         let version = versionFunction(config)
         if (version == currentVersionNumber)
             return config as T;
-        const seq = migrationSequence.slice(version, currentVersionNumber);
 
+        const seq = migrationSequence.slice(0, migrationSequence.length - version);
         let migrationFunction = compose(seq);
         let newConfig = migrationFunction(config) as T;
 
@@ -36,3 +37,9 @@ export function initialize<T>(config: Config | null, traits: Traits<T>): T {
 
     return result;
 }
+
+export function nextVersion(previousVersionNumber: number): number {
+    return previousVersionNumber + 1;
+}
+
+export const InitialVersionNumber = 0;
