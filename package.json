@@ -38,7 +38,7 @@
         "build": "npx tsc",
         "build:withimage": "docker run --rm -v `pwd`:/code homebridge-unraid-builder",
         "prepare": "npx tsc",
-        "test": "npx jest --config=tests/config.json",
+        "test": "",
         "release": "docker run --rm -v `pwd`:/artifacts homebridge-unraid-publisher"
     },
     "types": "dist/index.d.ts",
