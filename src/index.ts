@@ -3,7 +3,10 @@ import { Config } from "./server/models/config";
 import { Machine } from "./server/machine";
 import * as Platform from "./lib/platform";
 import "./util/promise";
-import * as hap from "hap-nodejs";
+
+import * as HAP from "hap-nodejs";
+
+const hap: typeof HAP = require.main?.require("hap-nodejs");
 
 namespace Unraid {
     export class ServerPlugin extends Platform.PlatformPlugin {

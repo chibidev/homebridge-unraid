@@ -43,7 +43,7 @@ export namespace HomeBridge {
         on<K extends keyof PlatformAccessoryEvents>(name: K, listener: (value: PlatformAccessoryEvents[K], ...params: any[]) => void): this;
     }
 
-    export let PlatformAccessory: new(name: string, uuid: string) => PlatformAccessory = require.main?.require("../lib/platformAccessory").PlatformAccessory;
+    export const PlatformAccessory: new(name: string, uuid: string) => PlatformAccessory = require.main?.require("../lib/platformAccessory").PlatformAccessory;
 
     export interface Logger {
         debug(message: string): void;
