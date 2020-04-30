@@ -19,7 +19,44 @@ interface MachineEvents {
     nameUpdated: string;
 }
 
-export class Machine extends TypedEventEmitter<MachineEvents> {
+export interface IMachine extends TypedEventEmitter<MachineEvents> {
+    Name: string;
+    available: boolean;
+
+    controlsHost(): this is HostController;
+    controlsContainers(): this is ContainerController;
+    controlsVMs(): this is VMController;
+    startMonitoring(): void;
+}
+
+export interface ContainerController extends IMachine {
+    containers: ObservableArray<Container>;
+
+    start(container: Container): Promise<void>;
+    stop(Container: Container): Promise<void>;
+}
+
+export interface VMController extends IMachine {
+    vms: ObservableArray<VM>;
+
+    start(vm: VM): Promise<void>
+    stop(vm: VM): Promise<void>;
+}
+
+export interface HostController extends IMachine {
+    start(): Promise<void>;
+    stop(): Promise<void>;
+}
+
+export type MachineController = ContainerController | VMController | HostController;
+
+export namespace MachineController {
+    export function CreateFromConfig(config: Const<Config.Machine>): MachineController {
+        return new Machine(config);
+    }
+}
+
+class Machine extends TypedEventEmitter<MachineEvents> implements ContainerController, VMController, HostController {
     public constructor(config: Const<Config.Machine>) {
         super();
 
@@ -33,6 +70,10 @@ export class Machine extends TypedEventEmitter<MachineEvents> {
 
         this.pollTimer = null;
 
+        this.enableContainers = config.enableContainers;
+        this.enableVMs = config.enableVMs;
+        this.enableHost = config.host.publish;
+
         switch (config.host.monitor.type) {
             case Config.MonitorType.PollOverSSH:
                 let monitor = config.host.monitor as Config.PollOverSSHMonitor;
@@ -43,6 +84,18 @@ export class Machine extends TypedEventEmitter<MachineEvents> {
             default:
                 throw new Error("Invalid configuration for command execution");
         }
+    }
+
+    public controlsContainers(): this is ContainerController {
+        return this.enableContainers;
+    }
+
+    public controlsVMs(): this is VMController {
+        return this.enableVMs;
+    }
+
+    public controlsHost(): this is HostController {
+        return this.enableHost;
     }
 
     public async start(): Promise<void>;
@@ -161,7 +214,7 @@ export class Machine extends TypedEventEmitter<MachineEvents> {
                     let realVM = this.vms.find((v) => {
                         return v.Name == vm.Name;
                     });
-                    
+
                     if (realVM !== undefined)
                         realVM.State = vm.State;
                 });
@@ -174,4 +227,8 @@ export class Machine extends TypedEventEmitter<MachineEvents> {
     private ip: string;
     private mac: string | undefined;
     private pollInterval: number;
+
+    private enableContainers: boolean;
+    private enableVMs: boolean;
+    private enableHost: boolean;
 }

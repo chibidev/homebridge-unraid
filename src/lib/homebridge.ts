@@ -1,6 +1,18 @@
 import { TypedEventEmitter } from "../util/events";
 import * as Config from "./config";
-import * as hap from "hap-nodejs";
+
+// In order to save plugins from depending on hap-nodejs, we import
+// and export it with a tiny twist.
+// Importing like this so that type information is available in
+// development time, but it won't try to load a different version
+// of hap-nodejs runtime. Ugly, but works.
+import type * as HAP from "hap-nodejs";
+
+export namespace hap {
+    export type Categories = HAP.Categories;
+    export type Service = HAP.Service;
+}
+export const hap: typeof HAP = require.main?.require("hap-nodejs");
 
 export namespace HomeBridge {
     // Importing the PlatformAccessory class directly will create a different PlatformAccessory class
