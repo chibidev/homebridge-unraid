@@ -1,69 +1,234 @@
 import { Config } from "./models/config";
 import { CommandExecutor, SSHCommandExecutor } from "./commands";
-import * as Providers from "./provider";
-import { PlatformAccessory } from "homebridge/lib/platformAccessory";
 import "../util/promise";
 
-import { DockerAccessoryProvider } from "./providers/docker";
-import { HostAccessoryProvider } from "./providers/host";
-import { LibvirtAccessoryProvider } from "./providers/libvirt";
+import ping = require("ping");
+import wol = require('wake_on_lan');
 
-export class Machine {
-    public constructor(config: Config.Machine) {
-        this.Id = config.id;
-        this.providers = [];
+import { ObservableArray } from "../util/reactive";
+import { Container } from "./models/container";
+import { VM } from "./models/vm";
 
-        let commandExecutor: CommandExecutor;
-        switch (config.address.type) {
-            case Config.AddressType.SSH:
-                    const sshConfig = config.address as Config.SSHAddress;
-                    commandExecutor = new SSHCommandExecutor(sshConfig.params.ip);
-                    break;
+import "../util/iterable";
+import { map } from "../util/map";
+import { TypedEventEmitter } from "../util/events";
+import { Const } from "../util/types";
+
+interface MachineEvents {
+    availabilityUpdated: boolean;
+    nameUpdated: string;
+}
+
+export interface IMachine extends TypedEventEmitter<MachineEvents> {
+    Name: string;
+    available: boolean;
+
+    controlsHost(): this is HostController;
+    controlsContainers(): this is ContainerController;
+    controlsVMs(): this is VMController;
+    startMonitoring(): void;
+}
+
+export interface ContainerController extends IMachine {
+    containers: ObservableArray<Container>;
+
+    start(container: Container): Promise<void>;
+    stop(Container: Container): Promise<void>;
+}
+
+export interface VMController extends IMachine {
+    vms: ObservableArray<VM>;
+
+    start(vm: VM): Promise<void>
+    stop(vm: VM): Promise<void>;
+}
+
+export interface HostController extends IMachine {
+    start(): Promise<void>;
+    stop(): Promise<void>;
+}
+
+export type MachineController = ContainerController | VMController | HostController;
+
+export namespace MachineController {
+    export function CreateFromConfig(config: Const<Config.Machine>): MachineController {
+        return new Machine(config);
+    }
+}
+
+class Machine extends TypedEventEmitter<MachineEvents> implements ContainerController, VMController, HostController {
+    public constructor(config: Const<Config.Machine>) {
+        super();
+
+        this.Name = config.id;
+        this.containers = new ObservableArray<Container>();
+        this.vms = new ObservableArray<VM>();
+        this.available = false;
+
+        this.ip = config.host.ip;
+        this.mac = config.host.mac;
+
+        this.pollTimer = null;
+
+        this.enableContainers = config.enableContainers;
+        this.enableVMs = config.enableVMs;
+        this.enableHost = config.host.publish;
+
+        switch (config.host.monitor.type) {
+            case Config.MonitorType.PollOverSSH:
+                let monitor = config.host.monitor as Config.PollOverSSHMonitor;
+                this.commandExecutor = new SSHCommandExecutor(monitor.ip ?? "root@" + config.host.ip);
+                this.pollInterval = monitor.interval;
+
+                break;
             default:
-                    throw new Error("Invalid configuration for command execution");
+                throw new Error("Invalid configuration for command execution");
+        }
+    }
+
+    public controlsContainers(): this is ContainerController {
+        return this.enableContainers;
+    }
+
+    public controlsVMs(): this is VMController {
+        return this.enableVMs;
+    }
+
+    public controlsHost(): this is HostController {
+        return this.enableHost;
+    }
+
+    public async start(): Promise<void>;
+    public async start(container: Container): Promise<void>;
+    public async start(vm: VM): Promise<void>;
+    public async start(object?: Container | VM): Promise<void> {
+        if (object === undefined) {
+            if (this.mac !== undefined)
+                wol.wake(this.mac);
+            return;
         }
 
-        if (config.enableContainers)
-            this.providers.push(new DockerAccessoryProvider(commandExecutor));
-        if (config.enableVMs)
-            this.providers.push(new LibvirtAccessoryProvider(commandExecutor));
-        if (config.host.publish)
-            this.providers.push(new HostAccessoryProvider(commandExecutor, config.host));
-    }
-
-    public async accessories(): Promise<PlatformAccessory[]> {
-        const accessories = Promise.all(this.providers.map((provider) => {
-            return provider.accessories().map((accessory) => {
-                accessory.context = {
-                    owner: {
-                        machine: this.Id,
-                        provider: provider.Type
-                    }
-                };
-                return accessory;
-            });
-        })).flat();
-
-        return accessories;
-    }
-
-    public configureAccessory(accessory: PlatformAccessory): boolean {
-        const ownerType = accessory.context.owner.provider;
-        if (!ownerType)
-            return false;
-
-        const owner = this.providers.find((provider) => {
-            return provider.Type == ownerType;
-        });
-
-        if (!owner)
-            accessory.reachable = false;
+        let command;
+        if (object instanceof Container)
+            command = "docker start " + object.Names[0];
         else
-            owner.configureAccessory(accessory);
+            command = "virsh start " + object.Name;
 
-        return true;
+        return this.commandExecutor.run(command).then();
     }
 
-    public readonly Id: string;
-    private providers: Providers.AccessoryProvider[];
+    public async stop(): Promise<void>;
+    public async stop(container: Container): Promise<void>;
+    public async stop(vm: VM): Promise<void>;
+    public async stop(object?: Container | VM): Promise<void> {
+        let command;
+        if (object === undefined)
+            command = "pm-suspend &";
+        else if (object instanceof Container)
+            command = "docker stop " + object.Names[0];
+        else
+            command = "virsh dompmsuspend " + object.Name + " disk";
+
+        return this.commandExecutor.run(command).then();
+    }
+
+    public readonly Name: string;
+    public containers: ObservableArray<Container>;
+    public vms: ObservableArray<VM>;
+    public available: boolean;
+
+    public startMonitoring() {
+        if (this.pollTimer != null)
+            return;
+
+        this.pollTimer = setInterval(() => {
+            this.poll();
+        }, this.pollInterval * 1000);
+    }
+
+    private poll() {
+        let available = ping.promise.probe(this.ip).then((response) => {
+            return response.alive;
+        });
+        available.then((available) => {
+            if (this.available != available) {
+                this.available = available;
+                this.emit("availabilityUpdated", available);
+            }
+            
+            if (!available) {
+                // Leave VMs and containers in the last state they were observed.
+                return;
+            }
+
+            const containers = this.commandExecutor.run("docker ps --format '{{ json . }}' --all --no-trunc | jq -s '[.[] | .Names |= split(\",\") | .Mounts |= split(\",\") | .Labels |= (split(\",\") | (map( split(\"=\") | { (.[0]) : .[1] } ) | add)) | .Ports |= (split(\",\") | ([.[] | capture(\"(?<ip>[^:]+):(?<hostportrange>[0-9-]+)->(?<containerportrange>[^/]+)/(?<protocol>[a-z]+)\")]))]'").then((output) => JSON.parse(output) as Container[]).catch((reason) => {
+                // Might not be a fatal error, machine could be restarting.
+                // We might need to propagate the reason though...
+                return new Array<Container>();
+            }).then((containers) => {
+                return containers.compare(this.containers, (lhs, rhs) => {
+                    return lhs.Names[0] == rhs.Names[0];
+                });
+            });
+            
+            containers.then((containers) => {
+                let newContainers = containers.new.map((container) => {
+                    return map(container).to(Container);
+                });
+                this.containers.push(...newContainers);
+                
+                containers.deleted.forEach((container) => {
+                    this.containers.remove(container);
+                });
+                
+                containers.intersection.forEach((container) => {
+                    let realContainer = this.containers.find((c) => {
+                        return c.Names[0] == container.Names[0];
+                    });
+                    
+                    if (realContainer !== undefined)
+                        realContainer.Status = container.Status;
+                });
+            });
+            
+            const vms = this.commandExecutor.run("virsh list --all --name | while read d; do [[ \"$d\" != \"\" ]] && virsh dominfo \"$d\" | tr -d ' ' | sed -e 's/^/\"/g' -e 's/:/\":\"/g' -e 's/$/\",/g'; done | sed -e 's/\"\"/}/g' -e 's/\"Id/{\"Id/g' -e 's/\"SecurityDOI\":\"\\(.*\\)\",/\"SecurityDOI\":\"\\1\"/g' -e 's/},/}/g' | jq -s").then((result) => JSON.parse(result) as VM[]).catch((reason) => {
+                // might not be a fatal error, machine could be restarting
+                return new Array<VM>();
+            }).then((vms) => {
+                return vms.compare(this.vms, (lhs, rhs) => {
+                    return lhs.Name == rhs.Name;
+                });
+            });
+
+            vms.then((vms) => {
+                let newVMs = vms.new.map((vm) => {
+                    return map(vm).to(VM);
+                });
+                this.vms.push(...newVMs);
+                
+                vms.deleted.forEach((vm) => {
+                    this.vms.remove(vm);
+                });
+                
+                vms.intersection.forEach((vm) => {
+                    let realVM = this.vms.find((v) => {
+                        return v.Name == vm.Name;
+                    });
+
+                    if (realVM !== undefined)
+                        realVM.State = vm.State;
+                });
+            });
+        });
+    }
+    
+    private commandExecutor: CommandExecutor;
+    private pollTimer: NodeJS.Timeout | null;
+    private ip: string;
+    private mac: string | undefined;
+    private pollInterval: number;
+
+    private enableContainers: boolean;
+    private enableVMs: boolean;
+    private enableHost: boolean;
 }

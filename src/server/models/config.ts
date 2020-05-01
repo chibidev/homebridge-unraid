@@ -1,5 +1,4 @@
 import { HomeBridge } from '../../lib/homebridge';
-import { compose } from "../../util/functional";
 
 export namespace Config {
     namespace v1 {
@@ -37,7 +36,7 @@ export namespace Config {
             updateInterval: number;
         }
 
-        export const VersionNumber = 0;
+        export const VersionNumber = HomeBridge.InitialConfigVersionNumber;
     }
 
     namespace v2 {
@@ -58,7 +57,7 @@ export namespace Config {
             updateInterval: number;
         }
 
-        export const VersionNumber = v1.VersionNumber + 1;
+        export const VersionNumber = HomeBridge.NextVersion(v1.VersionNumber);
 
         export function migrate(config: v1.Config): v2.Config {
             let v2Machines = config.machines.map((v1Machine) => {
@@ -84,7 +83,6 @@ export namespace Config {
         export type Address = v2.Address;
         export type SSHParams = v2.SSHParams;
         export type SSHAddress = v2.SSHAddress;
-        export import AccessoryProviderType = v2.AccessoryProviderType;
 
         export enum SwitchOffMechanism {
             ShutDown = "shutdown",
@@ -94,9 +92,9 @@ export namespace Config {
 
         export interface HostConfig {
             publish: boolean;
-            switchOffMechanism: SwitchOffMechanism;
-            mac: string;
+            switchOffMechanism?: SwitchOffMechanism;
             ip: string;
+            mac?: string;
         }
 
         export interface Machine {
@@ -112,66 +110,154 @@ export namespace Config {
             updateInterval: number;
         }
 
-        export const VersionNumber = v2.VersionNumber + 1;
+        export const VersionNumber = HomeBridge.NextVersion(v2.VersionNumber);
 
         export function migrate(config: v2.Config): v3.Config {
-            let v3Machines = config.machines.map((v2Machine) => {
-                let v3Machine = {
+            const v3Machines = config.machines.map((v2Machine) => {
+                const v3Machine: Machine = {
                     id: v2Machine.id,
                     address: v2Machine.address,
-                    enableContainers: v2Machine.providers.includes(AccessoryProviderType.Docker),
-                    enableVMs: v2Machine.providers.includes(AccessoryProviderType.Libvirt),
+                    enableContainers: v2Machine.providers.includes(v2.AccessoryProviderType.Docker),
+                    enableVMs: v2Machine.providers.includes(v2.AccessoryProviderType.Libvirt),
                     host: {
                         publish: false,
-                        switchOffMechanism: SwitchOffMechanism.SuspendToRAM
-                    } as HostConfig
-                } as Machine;
+                        ip: ""
+                    }
+                };
                 return v3Machine;
             });
-            let v3Config = {
+            const v3Config: Config = {
                 machines: v3Machines,
                 updateInterval: config.updateInterval
-            } as Config;
+            };
 
             return v3Config;
         }
+
+        export const DefaultConfig: Config = {
+            machines: [],
+            updateInterval: 15
+        };
     }
 
-    export function configVersion(config: HomeBridge.Config): number {
+    namespace v4 {
+        export import SwitchOffMechanism = v3.SwitchOffMechanism;
+
+        export enum MonitorType {
+            PollOverSSH = "ssh+poll"
+        }
+
+        export interface Monitor {
+            type: MonitorType;
+        }
+
+        export interface PollMonitor extends Monitor {
+            interval: number;
+        }
+
+        export interface SSHMonitor extends Monitor {
+            ip?: string;
+            port?: number;
+        }
+
+        export interface PollOverSSHMonitor extends PollMonitor, SSHMonitor {
+        }
+
+        export interface HostConfig {
+            monitor: Monitor;
+            publish: boolean;
+            ip: string;
+            mac?: string;
+            switchOffMechanism?: SwitchOffMechanism;
+        }
+
+        export interface Machine {
+            id: string;
+            enableContainers: boolean;
+            enableVMs: boolean;
+            host: HostConfig;
+        }
+
+        export interface Config extends HomeBridge.Config {
+            machines: Machine[];
+        }
+
+        export function migrate(config: v3.Config): v4.Config {
+            let pollTime = config.updateInterval;
+
+            let v4Machines = config.machines.map((machine) => {
+                const monitor: PollOverSSHMonitor = {
+                    type: MonitorType.PollOverSSH,
+                    interval: pollTime,
+                    ip: (machine.address.params as v3.SSHParams).ip
+                };
+
+                const hostConfig: HostConfig = {
+                    monitor: monitor,
+                    publish: machine.host.publish,
+                    ip: machine.host.ip,
+                    mac: machine.host.mac,
+                    switchOffMechanism: machine.host.switchOffMechanism,
+                }
+
+                const v4Machine: Machine = {
+                    id: machine.id,
+                    enableContainers: machine.enableContainers,
+                    enableVMs: machine.enableVMs,
+                    host: hostConfig
+                };
+
+                return v4Machine;
+            });
+
+            const v4Config: v4.Config = {
+                machines: v4Machines
+            };
+
+            return v4Config;
+        }
+
+        export const DefaultConfig: Config = {
+            machines: []
+        };
+
+        export const VersionNumber = HomeBridge.NextVersion(v3.VersionNumber);
+    }
+
+    function version(config: HomeBridge.Config): number {
         let v1Config = config as v1.Config;
         if (v1Config.providers)
             return v1.VersionNumber;
 
         let v2Config = config as v2.Config;
         if (v2Config.machines.length > 0)
-            if (v2Config.machines[0].providers)
+            if (v2Config.machines[0].providers !== undefined)
                 return v2.VersionNumber;
+
+        if (v2Config.updateInterval !== undefined)
+            return v3.VersionNumber;
 
         return currentVersionNumber;
     }
 
-    const migrationSequence = [v2.migrate, v3.migrate];
-    const currentVersionNumber = v3.VersionNumber;
+    const defaultConfig = v4.DefaultConfig;
+    const migrationSequence = [v4.migrate, v3.migrate, v2.migrate];
+    const currentVersionNumber = v4.VersionNumber;
 
-    export function migrate(config: HomeBridge.Config) {
-        let version = configVersion(config)
-        if (version == currentVersionNumber)
-            return config as Config;
-        const seq = migrationSequence.slice(version, currentVersionNumber);
-
-        let migrationFunction = compose(seq);
-        let newConfig = migrationFunction(config) as Config;
-
-        return newConfig;
+    export const Traits = {
+        defaultConfig: defaultConfig,
+        versionFunction: version,
+        currentVersionNumber: currentVersionNumber,
+        migrationSequence: migrationSequence
     }
 
-    export import AddressType = v3.AddressType;
-    export type Address = v3.Address;
-    export type SSHParams = v3.SSHParams;
-    export type SSHAddress = v3.SSHAddress;
-    export import AccessoryProviderType = v3.AccessoryProviderType;
-    export import SwitchOffMechanism = v3.SwitchOffMechanism;
-    export type HostConfig = v3.HostConfig;
-    export type Machine = v3.Machine;
-    export type Config = v3.Config;
+    export import SwitchOffMechanism = v4.SwitchOffMechanism;
+    export import MonitorType = v4.MonitorType;
+    export type Monitor = v4.Monitor;
+    export type PollMonitor = v4.PollMonitor;
+    export type SSHMonitor = v4.SSHMonitor;
+    export type PollOverSSHMonitor = v4.PollOverSSHMonitor;
+    export type HostConfig = v4.HostConfig;
+    export type Machine = v4.Machine;
+    export type Config = v4.Config;
 }

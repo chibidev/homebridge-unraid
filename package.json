@@ -1,6 +1,6 @@
 {
     "name": "homebridge-unraid",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "repository": {
         "type": "git",
         "url": "git+https://github.com/chibidev/homebridge-unraid.git"
@@ -11,20 +11,22 @@
         "url": "https://github.com/chibidev/homebridge-unraid/issues"
     },
     "devDependencies": {
-        "@types/jest": "^24.0.25",
-        "@types/node": "^12.12.14",
-        "@types/ping": "^0.2.0",
-        "@types/wake_on_lan": "0.0.27",
-        "homebridge": "^0.4.50",
-        "jest": "^24.9.0",
-        "ts-jest": "^24.2.0",
-        "typescript": "^3.7.4"
+        "@types/lodash.clonedeep": "4.5.x",
+        "@types/lodash.merge": "4.6.x",
+        "@types/node": "12.12.x",
+        "@types/ping": "0.2.x",
+        "@types/wake_on_lan": "0.0.x",
+        "hap-nodejs": "^0.5.9",
+        "homebridge": "0.4.x-beta",
+        "tslint": "6.1.x",
+        "typescript": "3.8.x"
     },
     "dependencies": {
-        "hap-nodejs": "^0.5.4",
-        "ping": "^0.2.2",
-        "ssh-exec": "^2.0.0",
-        "wake_on_lan": "^1.0.0"
+        "lodash.clonedeep": "4.5.x",
+        "lodash.merge": "4.6.x",
+        "ping": "0.2.x",
+        "ssh-exec": "2.0.x",
+        "wake_on_lan": "1.0.x"
     },
     "files": [
         "dist/**/*.js",
@@ -36,7 +38,7 @@
         "build": "npx tsc",
         "build:withimage": "docker run --rm -v `pwd`:/code homebridge-unraid-builder",
         "prepare": "npx tsc",
-        "test": "npx jest --config=tests/config.json",
+        "test": "",
         "release": "docker run --rm -v `pwd`:/artifacts homebridge-unraid-publisher"
     },
     "types": "dist/index.d.ts",
