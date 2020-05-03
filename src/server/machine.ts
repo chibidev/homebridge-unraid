@@ -19,9 +19,10 @@ interface MachineEvents {
     nameUpdated: string;
 }
 
-export interface IMachine extends TypedEventEmitter<MachineEvents> {
-    Name: string;
+interface BaseController extends TypedEventEmitter<MachineEvents> {
+    name: string;
     available: boolean;
+    autoOnEnabled: boolean;
 
     controlsHost(): this is HostController;
     controlsContainers(): this is ContainerController;
@@ -29,21 +30,21 @@ export interface IMachine extends TypedEventEmitter<MachineEvents> {
     startMonitoring(): void;
 }
 
-export interface ContainerController extends IMachine {
+export interface ContainerController extends BaseController {
     containers: ObservableArray<Container>;
 
     start(container: Container): Promise<void>;
     stop(Container: Container): Promise<void>;
 }
 
-export interface VMController extends IMachine {
+export interface VMController extends BaseController {
     vms: ObservableArray<VM>;
 
     start(vm: VM): Promise<void>
     stop(vm: VM): Promise<void>;
 }
 
-export interface HostController extends IMachine {
+export interface HostController extends BaseController {
     start(): Promise<void>;
     stop(): Promise<void>;
 }
@@ -60,7 +61,7 @@ class Machine extends TypedEventEmitter<MachineEvents> implements ContainerContr
     public constructor(config: Const<Config.Machine>) {
         super();
 
-        this.Name = config.id;
+        this.name = config.id;
         this.containers = new ObservableArray<Container>();
         this.vms = new ObservableArray<VM>();
         this.available = false;
@@ -73,6 +74,12 @@ class Machine extends TypedEventEmitter<MachineEvents> implements ContainerContr
         this.enableContainers = config.enableContainers;
         this.enableVMs = config.enableVMs;
         this.enableHost = config.host.publish;
+
+        this.autoOnEnabled = config.host.power?.autoOn ?? false;
+        this.autoOffEnabled = config.host.power?.autoOff.enabled ?? false;
+        this.autoOffDelay = config.host.power?.autoOff.secondsDelay ?? 0;
+
+        this.switchOffMechanism = config.host.power?.switchOffMechanism ?? Config.SwitchOffMechanism.SuspendToRAM;
 
         switch (config.host.monitor.type) {
             case Config.MonitorType.PollOverSSH:
@@ -103,18 +110,30 @@ class Machine extends TypedEventEmitter<MachineEvents> implements ContainerContr
     public async start(vm: VM): Promise<void>;
     public async start(object?: Container | VM): Promise<void> {
         if (object === undefined) {
-            if (this.mac !== undefined)
+            if (!this.available && this.mac !== undefined)
                 wol.wake(this.mac);
             return;
         }
 
-        let command;
+        let command: string;
         if (object instanceof Container)
             command = "docker start " + object.Names[0];
         else
             command = "virsh start " + object.Name;
 
-        return this.commandExecutor.run(command).then();
+        let task: Promise<void> = Promise.MakeReady();
+        if (this.autoOnEnabled && !this.available) {
+            task = this.start();
+            task = task.then(async () => {
+                return Promise.Delay(5000);
+            });
+        }
+
+        task = task.then(async () => {
+            return this.commandExecutor.run(command).then(() => {})
+        });
+
+        return task;
     }
 
     public async stop(): Promise<void>;
@@ -122,17 +141,35 @@ class Machine extends TypedEventEmitter<MachineEvents> implements ContainerContr
     public async stop(vm: VM): Promise<void>;
     public async stop(object?: Container | VM): Promise<void> {
         let command;
-        if (object === undefined)
-            command = "pm-suspend &";
-        else if (object instanceof Container)
+        if (object === undefined) {
+            switch (this.switchOffMechanism) {
+                case Config.SwitchOffMechanism.ShutDown:
+                    command = "shutdown -h now &";
+                    break;
+                case Config.SwitchOffMechanism.SuspendToDisk:
+                    command = "pm-hibernate &";
+                    break;
+                case Config.SwitchOffMechanism.SuspendToRAM:
+                    command = "pm-suspend &";
+                    break;
+            }
+        } else if (object instanceof Container) {
             command = "docker stop " + object.Names[0];
-        else
+        } else {
             command = "virsh dompmsuspend " + object.Name + " disk";
+        }
+
+        if (object !== undefined && this.autoOffEnabled) {
+            Promise.Delay(this.autoOffDelay * 1000).then(() => {
+                if (this.containers.filter((container) => container.IsRunning).empty() && this.vms.filter((vm) => vm.IsRunning).empty())
+                    this.stop();
+            });
+        }
 
         return this.commandExecutor.run(command).then();
     }
 
-    public readonly Name: string;
+    public readonly name: string;
     public containers: ObservableArray<Container>;
     public vms: ObservableArray<VM>;
     public available: boolean;
@@ -231,4 +268,9 @@ class Machine extends TypedEventEmitter<MachineEvents> implements ContainerContr
     private enableContainers: boolean;
     private enableVMs: boolean;
     private enableHost: boolean;
+
+    public autoOnEnabled: boolean;
+    private autoOffEnabled: boolean;
+    private autoOffDelay: number;
+    private switchOffMechanism: Config.SwitchOffMechanism;
 }
