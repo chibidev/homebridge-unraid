@@ -158,14 +158,12 @@ class Machine extends TypedEventEmitter<MachineEvents> implements ContainerContr
             command = "virsh dompmsuspend " + object.Name + " disk";
         }
 
-        if (object !== undefined && this.autoOffEnabled) {
-            Promise.Delay(this.autoOffDelay * 1000).then(() => {
-                if (this.containers.filter((container) => container.IsRunning).empty() && this.vms.filter((vm) => vm.IsRunning).empty())
-                    this.stop();
-            });
-        }
+        let task = this.commandExecutor.run(command).then(async () => {});
 
-        return this.commandExecutor.run(command).then();
+        if (object !== undefined)
+            this.startAutoOffTimerIfNecessary();
+
+        return task;
     }
 
     public readonly name: string;
@@ -207,7 +205,7 @@ class Machine extends TypedEventEmitter<MachineEvents> implements ContainerContr
                 });
             });
             
-            containers.then((containers) => {
+            let populateContainers = containers.then((containers) => {
                 let newContainers = containers.new.map((container) => {
                     return map(container).to(Container);
                 });
@@ -236,7 +234,7 @@ class Machine extends TypedEventEmitter<MachineEvents> implements ContainerContr
                 });
             });
 
-            vms.then((vms) => {
+            let populateVMs = vms.then((vms) => {
                 let newVMs = vms.new.map((vm) => {
                     return map(vm).to(VM);
                 });
@@ -255,7 +253,26 @@ class Machine extends TypedEventEmitter<MachineEvents> implements ContainerContr
                         realVM.State = vm.State;
                 });
             });
+
+            Promise.all([populateContainers, populateVMs]).then(() => {
+                if (this.anyServiceRunning())
+                    this.startAutoOffTimerIfNecessary();
+            });
         });
+    }
+
+    private startAutoOffTimerIfNecessary(): void {
+        if (!this.autoOffEnabled)
+            return;
+
+        Promise.Delay(this.autoOffDelay * 1000).then(() => {
+            if (this.anyServiceRunning())
+                this.stop();
+        });
+    }
+
+    private anyServiceRunning(): boolean {
+        return !this.containers.filter((container) => container.IsRunning).empty() || !this.vms.filter((vm) => vm.IsRunning).empty();
     }
     
     private commandExecutor: CommandExecutor;
