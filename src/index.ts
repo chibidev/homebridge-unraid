@@ -118,7 +118,7 @@ namespace Unraid {
                                 else
                                     result = controller.stop(vm);
                                 await result.finally(callback);
-                            }).updateValue(vm.IsRunning);
+                            });
                         }
 
                         switchOnCharacteristic.updateValue(vm.IsRunning);
