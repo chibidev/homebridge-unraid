@@ -33,6 +33,8 @@ namespace Unraid {
                     controller.containers.on("new", (container) => {
                         let service = machineAccessory.getService(container.Name);
                         if (service === undefined) {
+                            this.logger.debug("Adding new service " + container.Name + " to " + controller.name);
+
                             service = new hap.Service.Switch(container.Name, container.Name);
                             machineAccessory.addService(service);
                         } else {
@@ -64,12 +66,17 @@ namespace Unraid {
 
                     controller.containers.on("delete", (container) => {
                         let service = machineAccessory.getService(container.Name);
-                        if (service !== undefined)
+                        if (service !== undefined) {
+                            this.logger.debug("Removing " + service.displayName + " from " + controller.name);
+
                             machineAccessory.removeService(service);
+                        }
                     });
 
                     controller.on("availabilityUpdated", (available) => {
                         controller.containers.forEach((container) => {
+                            this.logger.debug(controller.name + " is unavailable. Disabling all controls on containers.");
+
                             let service = machineAccessory.getServiceByUUIDAndSubType(container.Name, container.Name);
     
                             let perms = [hap.Perms.READ, hap.Perms.NOTIFY];
@@ -88,6 +95,8 @@ namespace Unraid {
                     controller.vms.on("new", (vm) => {
                         let service = machineAccessory.getService(vm.Name);
                         if (service === undefined) {
+                            this.logger.debug("Adding new service " + vm.Name + " to " + controller.name);
+
                             service = new hap.Service.Switch(vm.Name, vm.Name);
                             machineAccessory.addService(service);
                         } else {
@@ -121,12 +130,17 @@ namespace Unraid {
 
                     controller.vms.on("delete", (vm) => {
                         let service = machineAccessory.getService(vm.Name);
-                        if (service !== undefined)
+                        if (service !== undefined) {
+                            this.logger.debug("Removing " + service.displayName + " from " + controller.name);
+
                             machineAccessory.removeService(service);
+                        }
                     });
 
                     controller.on("availabilityUpdated", (available) => {
                         controller.vms.forEach((vm) => {
+                            this.logger.debug(controller.name + " is unavailable. Disabling all controls on vms.");
+
                             let service = machineAccessory.getServiceByUUIDAndSubType(vm.Name, vm.Name);
     
                             let perms = [hap.Perms.READ, hap.Perms.NOTIFY];
