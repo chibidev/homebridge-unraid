@@ -255,7 +255,7 @@ class Machine extends TypedEventEmitter<MachineEvents> implements ContainerContr
             });
 
             Promise.all([populateContainers, populateVMs]).then(() => {
-                if (this.anyServiceRunning())
+                if (!this.anyServiceRunning())
                     this.startAutoOffTimerIfNecessary();
             });
         });
