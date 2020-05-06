@@ -266,7 +266,7 @@ class Machine extends TypedEventEmitter<MachineEvents> implements ContainerContr
             return;
 
         Promise.Delay(this.autoOffDelay * 1000).then(() => {
-            if (this.anyServiceRunning())
+            if (!this.anyServiceRunning())
                 this.stop();
         });
     }
