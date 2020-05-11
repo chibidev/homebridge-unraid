@@ -124,7 +124,9 @@ class Machine extends TypedEventEmitter<MachineEvents> implements ContainerContr
         let task: Promise<void> = Promise.MakeReady();
         if (this.autoOnEnabled && !this.available) {
             task = this.start().then(async () => {
-                while (!this.available);
+                while (!this.available) {
+                    await Promise.Delay(500);
+                }
                 return Promise.Delay(5000);
             });
         }
