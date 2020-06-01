@@ -224,6 +224,88 @@ export namespace Config {
         export const VersionNumber = HomeBridge.NextVersion(v3.VersionNumber);
     }
 
+    namespace v5 {
+        export import SwitchOffMechanism = v4.SwitchOffMechanism;
+        export import MonitorType = v4.MonitorType;
+        export type Monitor = v4.Monitor;
+        export type PollMonitor = v4.PollMonitor;
+        export type SSHMonitor = v4.SSHMonitor;
+        export type PollOverSSHMonitor = v4.PollOverSSHMonitor;
+
+        export interface AutoOffConfig {
+            enabled: boolean;
+            secondsDelay?: number;
+        }
+
+        export interface PowerConfig {
+            autoOn: boolean;
+            autoOff: AutoOffConfig;
+            switchOffMechanism?: SwitchOffMechanism;
+        }
+
+        export interface HostConfig {
+            monitor: Monitor;
+            publish: boolean;
+            ip: string;
+            mac?: string;
+            power?: PowerConfig;
+        }
+
+        export interface Machine {
+            id: string;
+            enableContainers: boolean;
+            enableVMs: boolean;
+            host: HostConfig;
+        }
+
+        export interface Config extends HomeBridge.Config {
+            machines: Machine[];
+        }
+
+        export function migrate(config: v4.Config): v5.Config {
+            let v5Machines = config.machines.map((machine) => {
+                const autoOffConfig: AutoOffConfig = {
+                    enabled: false
+                };
+
+                const powerConfig: PowerConfig = {
+                    autoOn: false,
+                    autoOff: autoOffConfig,
+                    switchOffMechanism: machine.host.switchOffMechanism
+                };
+
+                const hostConfig: HostConfig = {
+                    monitor: machine.host.monitor,
+                    publish: machine.host.publish,
+                    ip: machine.host.ip,
+                    mac: machine.host.mac,
+                    power: powerConfig
+                }
+
+                const v5Machine: Machine = {
+                    id: machine.id,
+                    enableContainers: machine.enableContainers,
+                    enableVMs: machine.enableVMs,
+                    host: hostConfig
+                };
+
+                return v5Machine;
+            });
+
+            let v5Config: Config = {
+                machines: v5Machines
+            };
+
+            return v5Config;
+        }
+
+        export const DefaultConfig: Config = {
+            machines: []
+        };
+
+        export const VersionNumber = HomeBridge.NextVersion(v4.VersionNumber);
+    }
+
     function version(config: HomeBridge.Config): number {
         let v1Config = config as v1.Config;
         if (v1Config.providers)
@@ -234,15 +316,21 @@ export namespace Config {
             if (v2Config.machines[0].providers !== undefined)
                 return v2.VersionNumber;
 
-        if (v2Config.updateInterval !== undefined)
+        let v3Config = config as v3.Config;
+        if (v3Config.updateInterval !== undefined)
             return v3.VersionNumber;
+
+        let v4Config = config as v4.Config;
+        if (v4Config.machines.length > 0)
+            if (v4Config.machines[0].host.switchOffMechanism !== undefined)
+                return v4.VersionNumber;
 
         return currentVersionNumber;
     }
 
-    const defaultConfig = v4.DefaultConfig;
-    const migrationSequence = [v4.migrate, v3.migrate, v2.migrate];
-    const currentVersionNumber = v4.VersionNumber;
+    const defaultConfig = v5.DefaultConfig;
+    const migrationSequence = [v5.migrate, v4.migrate, v3.migrate, v2.migrate];
+    const currentVersionNumber = v5.VersionNumber;
 
     export const Traits = {
         defaultConfig: defaultConfig,
@@ -251,13 +339,15 @@ export namespace Config {
         migrationSequence: migrationSequence
     }
 
-    export import SwitchOffMechanism = v4.SwitchOffMechanism;
-    export import MonitorType = v4.MonitorType;
-    export type Monitor = v4.Monitor;
-    export type PollMonitor = v4.PollMonitor;
-    export type SSHMonitor = v4.SSHMonitor;
-    export type PollOverSSHMonitor = v4.PollOverSSHMonitor;
-    export type HostConfig = v4.HostConfig;
-    export type Machine = v4.Machine;
-    export type Config = v4.Config;
+    export import SwitchOffMechanism = v5.SwitchOffMechanism;
+    export import MonitorType = v5.MonitorType;
+    export type Monitor = v5.Monitor;
+    export type PollMonitor = v5.PollMonitor;
+    export type SSHMonitor = v5.SSHMonitor;
+    export type PollOverSSHMonitor = v5.PollOverSSHMonitor;
+    export type AutoOffConfig = v5.AutoOffConfig;
+    export type PowerConfig = v5.PowerConfig;
+    export type HostConfig = v5.HostConfig;
+    export type Machine = v5.Machine;
+    export type Config = v5.Config;
 }

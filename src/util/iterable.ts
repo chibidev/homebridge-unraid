@@ -10,6 +10,7 @@ declare global {
     interface Array<T> {
         difference<U>(toArray: U[], predicate: (lhs: T, rhs: U) => boolean): T[];
         compare(toArray: T[], predicate: (lhs: T, rhs: T) => boolean): ArrayCompareResult<T>;
+        empty(): boolean;
     }
 }
 
@@ -55,5 +56,11 @@ Object.defineProperty(Array.prototype, "compare", {
         }
 
         return result;
+    }
+});
+
+Object.defineProperty(Array.prototype, "empty", {
+    value: function<T>(this: Array<T>): boolean {
+        return this.length == 0;
     }
 });

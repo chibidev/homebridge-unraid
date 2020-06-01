@@ -17,13 +17,13 @@ namespace Unraid {
 
         public configure(): void {
             this.controllers.forEach((controller) => {
-                let machineAccessory = this.machineAccessories[controller.Name];
+                let machineAccessory = this.machineAccessories[controller.name];
                 if (machineAccessory === undefined) {
-                    machineAccessory = new HomeBridge.PlatformAccessory(controller.Name, hap.uuid.generate(controller.Name));
-                    this.machineAccessories[controller.Name] = machineAccessory;
+                    machineAccessory = new HomeBridge.PlatformAccessory(controller.name, hap.uuid.generate(controller.name));
+                    this.machineAccessories[controller.name] = machineAccessory;
 
                     if (controller.controlsHost()) {
-                        const hostService = new hap.Service.Switch(controller.Name, "A");
+                        const hostService = new hap.Service.Switch(controller.name, "A");
                         hostService.isPrimaryService = true;
                         machineAccessory.addService(hostService);
                     }
@@ -33,6 +33,8 @@ namespace Unraid {
                     controller.containers.on("new", (container) => {
                         let service = machineAccessory.getService(container.Name);
                         if (service === undefined) {
+                            this.logger.debug("Adding new service " + container.Name + " to " + controller.name);
+
                             service = new hap.Service.Switch(container.Name, container.Name);
                             machineAccessory.addService(service);
                         } else {
@@ -64,16 +66,21 @@ namespace Unraid {
 
                     controller.containers.on("delete", (container) => {
                         let service = machineAccessory.getService(container.Name);
-                        if (service !== undefined)
+                        if (service !== undefined) {
+                            this.logger.debug("Removing " + service.displayName + " from " + controller.name);
+
                             machineAccessory.removeService(service);
+                        }
                     });
 
                     controller.on("availabilityUpdated", (available) => {
                         controller.containers.forEach((container) => {
+                            this.logger.debug(controller.name + " is unavailable. Disabling all controls on containers.");
+
                             let service = machineAccessory.getServiceByUUIDAndSubType(container.Name, container.Name);
     
                             let perms = [hap.Perms.READ, hap.Perms.NOTIFY];
-                            if (available)
+                            if (available || controller.autoOnEnabled)
                                 perms.push(hap.Perms.WRITE);
     
                             service?.getCharacteristic(hap.Characteristic.On)?.setProps({
@@ -88,6 +95,8 @@ namespace Unraid {
                     controller.vms.on("new", (vm) => {
                         let service = machineAccessory.getService(vm.Name);
                         if (service === undefined) {
+                            this.logger.debug("Adding new service " + vm.Name + " to " + controller.name);
+
                             service = new hap.Service.Switch(vm.Name, vm.Name);
                             machineAccessory.addService(service);
                         } else {
@@ -109,7 +118,7 @@ namespace Unraid {
                                 else
                                     result = controller.stop(vm);
                                 await result.finally(callback);
-                            }).updateValue(vm.IsRunning);
+                            });
                         }
 
                         switchOnCharacteristic.updateValue(vm.IsRunning);
@@ -121,16 +130,21 @@ namespace Unraid {
 
                     controller.vms.on("delete", (vm) => {
                         let service = machineAccessory.getService(vm.Name);
-                        if (service !== undefined)
+                        if (service !== undefined) {
+                            this.logger.debug("Removing " + service.displayName + " from " + controller.name);
+
                             machineAccessory.removeService(service);
+                        }
                     });
 
                     controller.on("availabilityUpdated", (available) => {
                         controller.vms.forEach((vm) => {
+                            this.logger.debug(controller.name + " is unavailable. Disabling all controls on vms.");
+
                             let service = machineAccessory.getServiceByUUIDAndSubType(vm.Name, vm.Name);
     
                             let perms = [hap.Perms.READ, hap.Perms.NOTIFY];
-                            if (available)
+                            if (available || controller.autoOnEnabled)
                                 perms.push(hap.Perms.WRITE);
     
                             service?.getCharacteristic(hap.Characteristic.On)?.setProps({
@@ -142,7 +156,7 @@ namespace Unraid {
                 }
 
                 if (controller.controlsHost()) {
-                    let hostService = machineAccessory.getService(controller.Name)!;
+                    let hostService = machineAccessory.getService(controller.name)!;
                     const switchOnCharacteristic = hostService.getCharacteristic(hap.Characteristic.On)!;
                     switchOnCharacteristic.on(hap.CharacteristicEventTypes.SET, async (value: boolean, callback: any) => {
                         let result;
@@ -164,7 +178,7 @@ namespace Unraid {
 
         public configureCachedAccessory(accessory: HomeBridge.PlatformAccessory): boolean {
             let machine = this.controllers.find((m) => {
-                return m.Name == accessory.displayName;
+                return m.name == accessory.displayName;
             });
             if (machine === undefined)
                 return false;

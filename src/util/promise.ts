@@ -7,6 +7,12 @@ declare global {
         map<U, V>(this: Promise<U[]>, mapping: (element: U) => V): Promise<V[]>;
         filter<U>(this: Promise<U[]>, predicate: (element: U) => boolean): Promise<U[]>;
     }
+
+    interface PromiseConstructor {
+        Delay(milliseconds: number): Promise<void>;
+        MakeReady(): Promise<void>;
+        MakeReady<T>(value: T): Promise<T>;
+    }
 }
 
 Promise.prototype.forEach = async function(loop) {
@@ -30,5 +36,17 @@ Promise.prototype.map = async function(mapping) {
 Promise.prototype.filter = async function(predicate) {
     return this.then((arr) => {
         return arr.filter(predicate);
+    });
+}
+
+Promise.Delay = function(milliseconds) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, milliseconds);
+    })
+}
+
+Promise.MakeReady = function<T>(value?: T) {
+    return new Promise<T>((resolve) => {
+        resolve(value);
     });
 }
