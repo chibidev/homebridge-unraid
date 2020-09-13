@@ -9,10 +9,38 @@ declare global {
     }
 
     interface PromiseConstructor {
-        Delay(milliseconds: number): Promise<void>;
+        Delay(milliseconds: number): Timeout;
         MakeReady(): Promise<void>;
         MakeReady<T>(value: T): Promise<T>;
     }
+}
+
+export class Timeout extends Promise<void> {
+    public constructor(milliseconds: number) {
+        super((resolve, reject) => {
+            this.timeout = setTimeout(resolve, milliseconds);
+            this.rejectFunction = reject;
+        });
+    }
+
+    public cancel(): void {
+        clearTimeout(this.timeout);
+        this.rejectFunction("Timeout cancelled");
+    }
+
+    private rejectFunction: (reason?: any) => void;
+    private timeout: NodeJS.Timeout;
+}
+
+export async function when(condition: Promise<boolean>) {
+    return condition.then((value) => {
+        return new Promise((resolve, reject) => {
+            if (value)
+                resolve();
+            else
+                reject();
+        });
+    });
 }
 
 Promise.prototype.forEach = async function(loop) {
@@ -40,9 +68,7 @@ Promise.prototype.filter = async function(predicate) {
 }
 
 Promise.Delay = function(milliseconds) {
-    return new Promise((resolve) => {
-        setTimeout(resolve, milliseconds);
-    })
+    return new Timeout(milliseconds);
 }
 
 Promise.MakeReady = function<T>(value?: T) {

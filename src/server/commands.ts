@@ -10,19 +10,21 @@ export class SSHCommandExecutor implements CommandExecutor {
     }
 
     public async run(command: string): Promise<string> {
-        return new Promise<string>((resolve, reject) => {
-            const stream = ssh(command, this.ip);
-            stream.on('error', (err: Error) => {
-                reject(err || new Error('Error running command ' + command));
-            });
+        return Promise.MakeReady().then(() => {
+                return new Promise<string>((resolve, reject) => {
+                const stream = ssh(command, this.ip);
+                stream.on('error', (err: Error) => {
+                    reject(err || new Error('Error running command ' + command));
+                });
 
-            let result = "";
-            stream.on('data', (chunk: string | Buffer) => {
-                result += chunk.toString('utf-8');
-            });
+                let result = "";
+                stream.on('data', (chunk: string | Buffer) => {
+                    result += chunk.toString('utf-8');
+                });
 
-            stream.on('end', () => {
-                resolve(result);
+                stream.on('end', () => {
+                    resolve(result);
+                });
             });
         });
     }
