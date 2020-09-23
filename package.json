@@ -16,8 +16,7 @@
         "@types/node": "12.12.x",
         "@types/ping": "0.2.x",
         "@types/wake_on_lan": "0.0.x",
-        "hap-nodejs": "^0.5.9",
-        "homebridge": "0.4.x-beta",
+        "homebridge": "1.x.x",
         "tslint": "6.1.x",
         "typescript": "3.8.x"
     },

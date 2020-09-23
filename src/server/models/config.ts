@@ -1,4 +1,4 @@
-import { HomeBridge } from '../../lib/homebridge';
+import * as HomeBridge from '../../lib/homebridge';
 
 export namespace Config {
     namespace v1 {
@@ -29,14 +29,14 @@ export namespace Config {
             providers: AccessoryProviderType[];
         }
     
-        export interface Config extends HomeBridge.Config {
+        export interface Config extends HomeBridge.Config.Config {
             machines: Machine[];
             providers: AccessoryProviderType[];
             ip: string;
             updateInterval: number;
         }
 
-        export const VersionNumber = HomeBridge.InitialConfigVersionNumber;
+        export const VersionIdentifier = HomeBridge.Config.InitialConfigVersionIdentifier;
     }
 
     namespace v2 {
@@ -52,12 +52,12 @@ export namespace Config {
             providers: AccessoryProviderType[];
         }
 
-        export interface Config extends HomeBridge.Config {
+        export interface Config extends HomeBridge.Config.Config {
             machines: Machine[];
             updateInterval: number;
         }
 
-        export const VersionNumber = HomeBridge.NextVersion(v1.VersionNumber);
+        export const VersionIdentifier = HomeBridge.Config.NextVersion(v1.VersionIdentifier);
 
         export function migrate(config: v1.Config): v2.Config {
             let v2Machines = config.machines.map((v1Machine) => {
@@ -105,12 +105,12 @@ export namespace Config {
             host: HostConfig;
         }
 
-        export interface Config extends HomeBridge.Config {
+        export interface Config extends HomeBridge.Config.Config {
             machines: Machine[];
             updateInterval: number;
         }
 
-        export const VersionNumber = HomeBridge.NextVersion(v2.VersionNumber);
+        export const VersionIdentifier = HomeBridge.Config.NextVersion(v2.VersionIdentifier);
 
         export function migrate(config: v2.Config): v3.Config {
             const v3Machines = config.machines.map((v2Machine) => {
@@ -178,7 +178,7 @@ export namespace Config {
             host: HostConfig;
         }
 
-        export interface Config extends HomeBridge.Config {
+        export interface Config extends HomeBridge.Config.Config {
             machines: Machine[];
         }
 
@@ -221,7 +221,7 @@ export namespace Config {
             machines: []
         };
 
-        export const VersionNumber = HomeBridge.NextVersion(v3.VersionNumber);
+        export const VersionIdentifier = HomeBridge.Config.NextVersion(v3.VersionIdentifier);
     }
 
     namespace v5 {
@@ -258,7 +258,7 @@ export namespace Config {
             host: HostConfig;
         }
 
-        export interface Config extends HomeBridge.Config {
+        export interface Config extends HomeBridge.Config.Config {
             machines: Machine[];
         }
 
@@ -303,39 +303,39 @@ export namespace Config {
             machines: []
         };
 
-        export const VersionNumber = HomeBridge.NextVersion(v4.VersionNumber);
+        export const VersionIdentifier = HomeBridge.Config.NextVersion(v4.VersionIdentifier);
     }
 
-    function version(config: HomeBridge.Config): number {
+    function version(config: HomeBridge.Config.Config): HomeBridge.Config.Version {
         let v1Config = config as v1.Config;
         if (v1Config.providers)
-            return v1.VersionNumber;
+            return v1.VersionIdentifier;
 
         let v2Config = config as v2.Config;
         if (v2Config.machines.length > 0)
             if (v2Config.machines[0].providers !== undefined)
-                return v2.VersionNumber;
+                return v2.VersionIdentifier;
 
         let v3Config = config as v3.Config;
         if (v3Config.updateInterval !== undefined)
-            return v3.VersionNumber;
+            return v3.VersionIdentifier;
 
         let v4Config = config as v4.Config;
         if (v4Config.machines.length > 0)
             if (v4Config.machines[0].host.switchOffMechanism !== undefined)
-                return v4.VersionNumber;
+                return v4.VersionIdentifier;
 
-        return currentVersionNumber;
+        return currentVersion;
     }
 
     const defaultConfig = v5.DefaultConfig;
     const migrationSequence = [v5.migrate, v4.migrate, v3.migrate, v2.migrate];
-    const currentVersionNumber = v5.VersionNumber;
+    const currentVersion = v5.VersionIdentifier;
 
     export const Traits = {
         defaultConfig: defaultConfig,
         versionFunction: version,
-        currentVersionNumber: currentVersionNumber,
+        currentVersionIdentifier: currentVersion,
         migrationSequence: migrationSequence
     }
 

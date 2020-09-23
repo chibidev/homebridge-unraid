@@ -1,11 +1,10 @@
-import { HomeBridge, hap } from "./lib/homebridge";
+import * as HomeBridge from "./lib/homebridge";
 import { Config } from "./server/models/config";
 import { MachineController } from "./server/machine";
-import * as Platform from "./lib/platform";
 import "./util/promise";
 
 namespace Unraid {
-    export class ServerPlugin extends Platform.PlatformPlugin {
+    export class ServerPlugin extends HomeBridge.Platform.Plugin {
         public constructor(log: HomeBridge.Logger, config: Config.Config) {
             super(log, config);
 
@@ -19,11 +18,11 @@ namespace Unraid {
             this.controllers.forEach((controller) => {
                 let machineAccessory = this.machineAccessories[controller.name];
                 if (machineAccessory === undefined) {
-                    machineAccessory = new HomeBridge.PlatformAccessory(controller.name, hap.uuid.generate(controller.name));
+                    machineAccessory = new HomeBridge.Platform.Accessory(controller.name, HomeBridge.hap.uuid.generate(controller.name));
                     this.machineAccessories[controller.name] = machineAccessory;
 
                     if (controller.controlsHost()) {
-                        const hostService = new hap.Service.Switch(controller.name, "A");
+                        const hostService = new HomeBridge.hap.Service.Switch(controller.name, "A");
                         hostService.isPrimaryService = true;
                         machineAccessory.addService(hostService);
                     }
@@ -35,19 +34,19 @@ namespace Unraid {
                         if (service === undefined) {
                             this.logger.debug("Adding new service " + container.Name + " to " + controller.name);
 
-                            service = new hap.Service.Switch(container.Name, container.Name);
+                            service = new HomeBridge.hap.Service.Switch(container.Name, container.Name);
                             machineAccessory.addService(service);
                         } else {
-                            service?.getCharacteristic(hap.Characteristic.On)?.setProps({
-                                perms: [hap.Perms.READ, hap.Perms.WRITE, hap.Perms.NOTIFY]
+                            service?.getCharacteristic(HomeBridge.hap.Characteristic.On)?.setProps({
+                                perms: [HomeBridge.hap.Perms.PAIRED_READ, HomeBridge.hap.Perms.PAIRED_WRITE, HomeBridge.hap.Perms.NOTIFY]
                             });
                             service.setHiddenService(false);
                         }
 
-                        const switchOnCharacteristic = service.getCharacteristic(hap.Characteristic.On)!;
-                        if (switchOnCharacteristic.listenerCount(hap.CharacteristicEventTypes.SET) < 1) {
-                            switchOnCharacteristic.on(hap.CharacteristicEventTypes.SET, async (value: boolean, callback: any) => {
-                                if (! switchOnCharacteristic.props.perms.includes(hap.Perms.WRITE))
+                        const switchOnCharacteristic = service.getCharacteristic(HomeBridge.hap.Characteristic.On)!;
+                        if (switchOnCharacteristic.listenerCount(HomeBridge.hap.CharacteristicEventTypes.SET) < 1) {
+                            switchOnCharacteristic.on(HomeBridge.hap.CharacteristicEventTypes.SET, async (value: boolean, callback: any) => {
+                                if (! switchOnCharacteristic.props.perms.includes(HomeBridge.hap.Perms.PAIRED_WRITE))
                                     return callback();
 
                                 let result;
@@ -77,13 +76,13 @@ namespace Unraid {
                         controller.containers.forEach((container) => {
                             this.logger.debug(controller.name + " is unavailable. Disabling all controls on containers.");
 
-                            let service = machineAccessory.getServiceByUUIDAndSubType(container.Name, container.Name);
+                            let service = machineAccessory.getServiceById(container.Name, container.Name);
     
-                            let perms = [hap.Perms.READ, hap.Perms.NOTIFY];
+                            let perms = [HomeBridge.hap.Perms.PAIRED_READ, HomeBridge.hap.Perms.NOTIFY];
                             if (available || controller.autoOnEnabled)
-                                perms.push(hap.Perms.WRITE);
+                                perms.push(HomeBridge.hap.Perms.PAIRED_WRITE);
     
-                            service?.getCharacteristic(hap.Characteristic.On)?.setProps({
+                            service?.getCharacteristic(HomeBridge.hap.Characteristic.On)?.setProps({
                                 perms: perms
                             });
                             service?.setHiddenService(false); // Trigger update
@@ -97,19 +96,19 @@ namespace Unraid {
                         if (service === undefined) {
                             this.logger.debug("Adding new service " + vm.Name + " to " + controller.name);
 
-                            service = new hap.Service.Switch(vm.Name, vm.Name);
+                            service = new HomeBridge.hap.Service.Switch(vm.Name, vm.Name);
                             machineAccessory.addService(service);
                         } else {
-                            service?.getCharacteristic(hap.Characteristic.On)?.setProps({
-                                perms: [hap.Perms.READ, hap.Perms.WRITE, hap.Perms.NOTIFY]
+                            service?.getCharacteristic(HomeBridge.hap.Characteristic.On)?.setProps({
+                                perms: [HomeBridge.hap.Perms.PAIRED_READ, HomeBridge.hap.Perms.PAIRED_WRITE, HomeBridge.hap.Perms.NOTIFY]
                             });
                             service.setHiddenService(false);
                         }
 
-                        const switchOnCharacteristic = service.getCharacteristic(hap.Characteristic.On)!;
-                        if (switchOnCharacteristic.listenerCount(hap.CharacteristicEventTypes.SET) < 1) {
-                            switchOnCharacteristic.on(hap.CharacteristicEventTypes.SET, async (value: boolean, callback: any) => {
-                                if (! switchOnCharacteristic.props.perms.includes(hap.Perms.WRITE))
+                        const switchOnCharacteristic = service.getCharacteristic(HomeBridge.hap.Characteristic.On)!;
+                        if (switchOnCharacteristic.listenerCount(HomeBridge.hap.CharacteristicEventTypes.SET) < 1) {
+                            switchOnCharacteristic.on(HomeBridge.hap.CharacteristicEventTypes.SET, async (value: boolean, callback: any) => {
+                                if (! switchOnCharacteristic.props.perms.includes(HomeBridge.hap.Perms.PAIRED_WRITE))
                                     return callback();
 
                                 let result;
@@ -141,13 +140,13 @@ namespace Unraid {
                         controller.vms.forEach((vm) => {
                             this.logger.debug(controller.name + " is unavailable. Disabling all controls on vms.");
 
-                            let service = machineAccessory.getServiceByUUIDAndSubType(vm.Name, vm.Name);
+                            let service = machineAccessory.getServiceById(vm.Name, vm.Name);
     
-                            let perms = [hap.Perms.READ, hap.Perms.NOTIFY];
+                            let perms = [HomeBridge.hap.Perms.PAIRED_READ, HomeBridge.hap.Perms.NOTIFY];
                             if (available || controller.autoOnEnabled)
-                                perms.push(hap.Perms.WRITE);
+                                perms.push(HomeBridge.hap.Perms.PAIRED_WRITE);
     
-                            service?.getCharacteristic(hap.Characteristic.On)?.setProps({
+                            service?.getCharacteristic(HomeBridge.hap.Characteristic.On)?.setProps({
                                 perms: perms
                             });
                             service?.setHiddenService(false); // Trigger update
@@ -157,8 +156,8 @@ namespace Unraid {
 
                 if (controller.controlsHost()) {
                     let hostService = machineAccessory.getService(controller.name)!;
-                    const switchOnCharacteristic = hostService.getCharacteristic(hap.Characteristic.On)!;
-                    switchOnCharacteristic.on(hap.CharacteristicEventTypes.SET, async (value: boolean, callback: any) => {
+                    const switchOnCharacteristic = hostService.getCharacteristic(HomeBridge.hap.Characteristic.On)!;
+                    switchOnCharacteristic.on(HomeBridge.hap.CharacteristicEventTypes.SET, async (value: boolean, callback: any) => {
                         let result;
                         if (value)
                             result = controller.start();
@@ -176,7 +175,7 @@ namespace Unraid {
             });
         }
 
-        public configureCachedAccessory(accessory: HomeBridge.PlatformAccessory): boolean {
+        public configureCachedAccessory(accessory: HomeBridge.Platform.Accessory): boolean {
             let machine = this.controllers.find((m) => {
                 return m.name == accessory.displayName;
             });
@@ -193,8 +192,8 @@ namespace Unraid {
         }
 
         private controllers: MachineController[];
-        private machineAccessories: { [machineName: string]: HomeBridge.PlatformAccessory };
+        private machineAccessories: { [machineName: string]: HomeBridge.Platform.Accessory };
     }
 }
 
-export default Platform.register("homebridge-unraid", "UnraidServerPlatform", Unraid.ServerPlugin, Config.Traits);
+export default HomeBridge.Platform.register("homebridge-unraid", "UnraidServerPlatform", Unraid.ServerPlugin, Config.Traits);
