@@ -334,6 +334,13 @@ class Machine extends TypedEventEmitter<MachineEvents> implements ContainerContr
         this.vmManager.vms.on("new", () => {
             this.cancelAutoOffTimerIfNecessary();
         });
+
+        this.hostManager.on("availabilityUpdated", (available) => {
+            if (this.available != available) {
+                this.available = available;
+                this.emit("availabilityUpdated", available);
+            }
+        });
     }
 
     public controlsContainers(): this is ContainerController {
@@ -402,9 +409,7 @@ class Machine extends TypedEventEmitter<MachineEvents> implements ContainerContr
         return this.vmManager.vms;
     }
 
-    public get available() {
-        return this.hostManager.available;
-    }
+    public available: boolean;
 
     public startMonitoring() {
         this.containerManager.startMonitoring();
