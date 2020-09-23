@@ -2,7 +2,6 @@ import * as homebridge from "homebridge";
 
 import { TypedEventEmitter } from "../util/events";
 import * as config from "./config";
-import * as platform from "./platform";
 
 // In order to save plugins from depending on hap-nodejs, we import
 // and export it with a tiny twist.
@@ -76,7 +75,11 @@ export namespace Platform {
 
         protected api: API.PlatformAPI;
     }
+}
 
+import * as platform from "./platform";
+
+export namespace Platform {
     export const register = platform.register;
     export type Plugin = platform.Plugin;
     export const Plugin = platform.Plugin;
