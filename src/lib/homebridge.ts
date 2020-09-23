@@ -77,6 +77,10 @@ export namespace Platform {
     }
 }
 
+// Since classes in 'platform' use things from HomeBridge, but we want to expose it
+// on a single interface, we have a circular dependency. This shouldn't matter too much,
+// though it creates an issue if this import is moved up (before the Platform.Dynamic
+// class declaration). Leave it at the bottom.
 import * as platform from "./platform";
 
 export namespace Platform {
