@@ -9,7 +9,7 @@ import * as platform from "./platform";
 // Importing like this so that type information is available in
 // development time, but it won't try to load a different version
 // of hap-nodejs runtime. Ugly, but works.
-import type * as HAP from "homebridge/node_modules/hap-nodejs";
+import type * as HAP from "hap-nodejs";
 
 export namespace hap {
     export type Categories = HAP.Categories;
