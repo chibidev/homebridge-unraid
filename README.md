@@ -74,8 +74,7 @@ You might need to restart HomeBridge to recognize the new plugin and load the ne
                         "ip": "192.168.1.2"
                     }
                 }
-            ],
-            "updateInterval": 5
+            ]
         }
     ]
 }
